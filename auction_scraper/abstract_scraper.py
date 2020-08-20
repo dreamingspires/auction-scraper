@@ -7,8 +7,28 @@ import requests
 from bs4 import BeautifulSoup
 import unicodedata
 import traceback
+from pathlib import Path
+from termcolor import colored
 
 from auction_scraper.abstract_models import Base, BaseAuction, BaseProfile
+
+# From https://stackoverflow.com/questions/18092354/python-split-string-without-splitting-escaped-character#21107911
+def _escape_split(s, delim):
+    i, res, buf = 0, [], ''
+    while True:
+        j, e = s.find(delim, i), 0
+        if j < 0:  # end reached
+            return res + [buf + s[i:]]  # add remainder
+        while j - e and s[j - e - 1] == '\\':
+            e += 1  # number of escapes
+        d = e // 2  # number of double escapes
+        if e != d * 2:  # odd number of escapes
+            buf += s[i:j - d - 1] + s[j]  # add the escaped char
+            i = j + 1  # and skip it
+            continue  # add more to buf
+        res.append(buf + s[i:j - d])
+        i, buf = j + len(delim), ''  # start after delim
+
 
 class SearchResult():
     def __init__(self, name, uri):
@@ -20,47 +40,101 @@ class AbstractAuctionScraper():
     auction_table = None
     profile_table = None
     base_uri = None
-    base_auction_suffix = None
-    base_profile_suffix = None
-    base_search_suffix = None
+    auction_suffix = None
+    profile_suffix = None
+    search_suffix = None
+    backend_name = None
 
-    def __init__(self, db_path, data_location, base_uri=None, \
-            base_auction_suffix=None, base_profile_suffix=None, \
-            base_search_suffix = None, auction_save_path=None, \
-            profile_save_path=None, search_save_path=None):
-        if base_auction_suffix is not None:
-            self.base_auction_suffix = base_auction_suffix
-        if base_profile_suffix is not None:
-            self.base_profile_suffix = base_profile_suffix
-        if base_search_suffix is not None:
-            self.base_search_suffix = base_search_suffix
+    def __init__(self, db_path, data_location=None, base_uri=None, \
+            auction_suffix=None, profile_suffix=None, \
+            search_suffix = None, auction_save_path=None, \
+            profile_save_path=None, search_save_path=None, \
+            image_save_path=None, verbose=False):
+        self.verbose = verbose
 
-        self.base_auction_uri = urljoin(self.base_uri, self.base_auction_suffix)
-        self.base_profile_uri = urljoin(self.base_uri, self.base_profile_suffix)
-        self.base_search_uri = urljoin(self.base_uri, self.base_search_suffix)
+        if auction_suffix is not None:
+            self.auction_suffix = auction_suffix
+        if profile_suffix is not None:
+            self.profile_suffix = profile_suffix
+        if search_suffix is not None:
+            self.search_suffix = search_suffix
 
-        self.data_location = data_location
-        
-        # TODO: Convert into pathlib.path objects
-        self.auction_save_path = auction_save_path
-        self.profile_save_path = profile_save_path
-        self.search_save_path = search_save_path
+        if base_uri is not None:
+            self.base_uri = base_uri
+        self.base_auction_uri = urljoin(self.base_uri, self.auction_suffix)
+        self.base_profile_uri = urljoin(self.base_uri, self.profile_suffix)
+        self.base_search_uri = urljoin(self.base_uri, self.search_suffix)
+
+        # Configure default data locations
+        if data_location is not None:
+            data_location = Path(data_location)
+            self.auction_save_path = data_location \
+                .joinpath(self.backend_name).joinpath('auctions')
+            self.profile_save_path = data_location \
+                .joinpath(self.backend_name).joinpath('profiles')
+            self.search_save_path = data_location \
+                .joinpath(self.backend_name).joinpath('searches')
+            self.image_save_path = data_location \
+                .joinpath(self.backend_name).joinpath('images')
+        else:
+            self.auction_save_path = None
+            self.profile_save_path = None
+            self.search_save_path = None
+            self.image_save_path = None
+
+        # Override specified data locations
+        if auction_save_path is not None:
+            self.auction_save_path = Path(auction_save_path)
+        if profile_save_path is not None:
+            self.profile_save_path = Path(profile_save_path)
+        if search_save_path is not None:
+            self.search_save_path = Path(search_save_path)
+        if image_save_path is not None:
+            self.image_save_path = Path(image_save_path)
+
+        # Create data locations if don't exist
+        if self.auction_save_path is not None:
+            self.auction_save_path.mkdir(parents=True, exist_ok=True)
+        if self.profile_save_path is not None:
+            self.profile_save_path.mkdir(parents=True, exist_ok=True)
+        if self.search_save_path is not None:
+            self.search_save_path.mkdir(parents=True, exist_ok=True)
+        if self.image_save_path is not None:
+            self.image_save_path.mkdir(parents=True, exist_ok=True)
 
         # Some method of choosing what the saved html file names are
         self.auction_save_name = 'auction-{}.html'
         self.profile_save_name = 'profile-{}.html'
-        self.search_save_name = 'search-{}.html'
+        self.search_save_name = 'search-{}-{}.html'
 
         if self.auction_table is None or self.profile_table is None:
             raise ValueError('self.auction_table and self.profile_table must be set in the __init__ method of a subclass of AbstractAuctionScraper')
 
         # Define the application base directory
         self.engine = create_engine('sqlite:///' + os.path.abspath(db_path), \
-            echo=True)
+            echo=verbose)
         self.Session = sessionmaker(bind=self.engine)
 
         # Create the database tables
         Base.metadata.create_all(self.engine)
+
+    def _download_images(self, image_urls, auction_id):
+        # backend-name  instead of name prefix
+        image_paths = []
+        for url in image_urls:
+            name = f'{self.backend_name}_{auction_id}_' + \
+                '_'.join(urlparse(url).path.split('/'))
+            path = self.image_save_path.joinpath(name).resolve()
+            image_paths.append(path)
+
+            if not path.is_file():
+                r = requests.get(url)
+                if not r.ok:
+                    print(colored('Could not find page: {}'.format(url), 'red'))
+                with open(path, 'wb') as f:
+                    f.write(r.content)
+
+        return image_paths
 
     def _normalise_text(self, text):
         """
@@ -100,7 +174,7 @@ class AbstractAuctionScraper():
                 iframe.append(iframe_soup)
         return soup
 
-    def scrape_auction(self, auction, save_page=False):
+    def scrape_auction(self, auction, save_page=False, save_images=False):
         """
         Scrapes an auction page, specified by either a unique auction ID
         or a URI.  Returns an auction model containing the scraped data.
@@ -114,10 +188,14 @@ class AbstractAuctionScraper():
 
         auction_uri = self.base_auction_uri.format(auction) \
             if not validators.url(auction) else auction
+        print(auction_uri)
 
         if save_page and not self.auction_save_path:
             raise ValueError(
-                "Can't save page: auction_save_path not specified on scraper initialisation")
+                "Can't save page: data-location not specified on scraper initialisation")
+        if save_images and not self.auction_save_path:
+            raise ValueError(
+                "Can't save images: data-location not specified on scraper initialisation")
 
         # Get the auction page
         # auction_id should be returned in case it was specified by uri
@@ -125,12 +203,21 @@ class AbstractAuctionScraper():
 
         # Save if required
         if save_page:
-            name = self.auction_save_name.format(auction_id)
-            with open(self.auction_save_path.joinpath(name)) as f:
-                f.write(soup.prettify())
+            name = self.auction_save_name.format(auction.id)
+            with open(self.auction_save_path.joinpath(name), 'w') as f:
+                f.write(html)
 
-        # TODO: save out images if required, updating the image paths field
-        # as required
+        # Save images if required, updating image_paths
+        if save_images:
+            new_image_paths = list(map(str, self._download_images(auction.image_urls.split(' '), auction.id)))
+            if auction.image_paths is not None:
+                existing_image_paths = _escape_split( \
+                    auction.image_paths, ':')
+            else:
+                existing_image_paths = []
+
+            auction.image_paths = ':'.join(list(set(new_image_paths).union( \
+                existing_image_paths)))
 
         return auction
 
@@ -159,14 +246,15 @@ class AbstractAuctionScraper():
 
         # Save if required
         if save_page:
-            name = self.profile_save_name.format(profile_id)
-            with open(self.profile_save_path.joinpath(name)) as f:
-                f.write(soup.prettify())
+            name = self.profile_save_name.format(profile.id)
+            with open(self.auction_save_path.joinpath(name), 'w') as f:
+                f.write(html)
 
         return profile
 
     # TODO: implement save_page
-    def scrape_search(self, query_string, n_results=None, save_page=False):
+    def scrape_search(self, query_string, n_results=None, save_page=False,
+            save_images=False):
         """
         Scrapes a search page, specified by either a query_string and n_results,
         or by a unique URI.
@@ -175,6 +263,13 @@ class AbstractAuctionScraper():
         If specified by a search_uri, returns just the results on the page.
         """
 
+        if save_page and not self.auction_save_path:
+            raise ValueError(
+                "Can't save page: data-location not specified on scraper initialisation")
+        if save_images and not self.auction_save_path:
+            raise ValueError(
+                "Can't save images: data-location not specified on scraper initialisation")
+
         results = {}
         n_page = 1
         # De-paginate the search results
@@ -182,7 +277,13 @@ class AbstractAuctionScraper():
             uri = self._generate_search_uri(query_string, n_page)
             n_res = len(results)
             res, html = self._scrape_search_page(uri)
-            # TODO: save the html page here if required
+
+            # Save the html page here if required
+            if save_page:
+                name = self.search_save_name.format(query_string, n_page)
+                with open(self.search_save_path.joinpath(name), 'w') as f:
+                    f.write(html)
+
             results = {**results, **res}
             if len(results) == n_res:
                 break
@@ -195,8 +296,8 @@ class AbstractAuctionScraper():
 
         return results
 
-    def scrape_auction_to_db(self, auction, save_page=False):
-        auction = self.scrape_auction(auction, save_page)
+    def scrape_auction_to_db(self, auction, save_page=False, save_images=False):
+        auction = self.scrape_auction(auction, save_page, save_images)
         session = self.Session()
         session.merge(auction)
         session.commit()
@@ -209,7 +310,8 @@ class AbstractAuctionScraper():
         session.commit()
         return profile
 
-    def scrape_search_to_db(self, query_strings, n_results=None, save_page=False):
+    def scrape_search_to_db(self, query_strings, n_results=None, \
+            save_page=False, save_images=False):
         if isinstance(query_strings, str):
             query_strings = [query_strings]
 
@@ -217,14 +319,16 @@ class AbstractAuctionScraper():
         results = {}
         for query_string in query_strings:
             results = {**results, \
-                    **self.scrape_search(query_string, n_results)}
+                    **self.scrape_search(query_string, n_results, save_page,
+                        save_images)}
 
         scraped_profile_ids = set()
         exceptions = []
         for auction_id, search in results.items():
             try:
                 print('Scraping auction url {}'.format(search.uri))
-                auction = self.scrape_auction_to_db(search.uri, save_page)
+                auction = self.scrape_auction_to_db(search.uri, save_page, \
+                    save_images)
                 profile_id = auction.seller_id
 
                 if profile_id is not None and profile_id not in scraped_profile_ids:

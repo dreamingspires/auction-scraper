@@ -4,7 +4,6 @@ from sqlalchemy.types import Text
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy_utils import CurrencyType
 from sqlalchemy.orm import relationship
-from sqlalchemy_imageattach.entity import Image, image_attachment
 from sqlalchemy.ext.declarative.api import DeclarativeMeta
 from datetime import datetime
 
@@ -55,6 +54,8 @@ class BaseAuction(TimestampBase):
     currency = Column(CurrencyType)
     latest_price = Column(String(16))
     starting_price = Column(String(16))
+    # image_urls: space-separated urls
+    image_urls = Column(Text())
     # image_paths: colon-separated paths relative to some base path
     image_paths = Column(Text(), nullable=False, default='')
 

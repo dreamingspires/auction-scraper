@@ -19,7 +19,6 @@ class LiveAuctioneersAuction(BaseAuction, metaclass=BaseAuctionRelationshipMeta,
     __tablename__ = 'liveauctioneers_auctions'
     location = Column(Text())
     lot_number = Column(Integer)
-    image_urls = Column(Text())
     condition = Column(Text())
     high_bid_estimate = Column(String(16))
     low_bid_estimate = Column(String(16))

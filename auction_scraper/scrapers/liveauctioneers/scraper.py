@@ -1,11 +1,23 @@
 from urllib.parse import urlparse, urljoin
 from os import devnull
-from sys import stdout, stderr, __stdout__, __stderr__
+import sys
 from slimit.parser import Parser
 from slimit.visitors import nodevisitor
 from slimit import ast
 import re
 from datetime import datetime
+from pathlib import Path
+import contextlib
+
+@contextlib.contextmanager
+def silence_output():
+    save_stdout = sys.stdout
+    save_stderr = sys.stderr
+    sys.stdout = open(devnull, 'w')
+    sys.stderr = open(devnull, 'w')
+    yield
+    sys.stdout = save_stdout
+    sys.stderr = save_stderr
 
 from auction_scraper.abstract_scraper import AbstractAuctionScraper, \
     SearchResult
@@ -16,9 +28,10 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
     auction_table = LiveAuctioneersAuction
     profile_table = LiveAuctioneersProfile
     base_uri = 'https://www.liveauctioneers.com'
-    base_auction_suffix = '/item/{}'
-    base_profile_suffix = '/auctioneer/{}'
-    base_search_suffix = '/search/?keyword={}&page={}'
+    auction_suffix = '/item/{}'
+    profile_suffix = '/auctioneer/{}'
+    search_suffix = '/search/?keyword={}&page={}'
+    backend_name = 'liveauctioneers'
 
     def __quote_cleaner(self, phrase):
         try:
@@ -50,12 +63,11 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
         def get_embedded_json():
             jsonsect = self.__searcher(soup, \
                 '<script data-reactroot="">', '</script>')
-            
-            # Bodge: until we move from slimit to calmjs
-            stdout = open(devnull, "w")
-            stderr = open(devnull, "w")
 
-            parser = Parser()
+            # Bodge until we get rid of slimit
+            with silence_output():
+                parser = Parser()
+            
             tree = parser.parse(jsonsect)
             j=0
             element = {}
@@ -69,11 +81,6 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
                                 element[leftp] = self.__quote_cleaner(rightp)
                 except:
                     pass
-            
-            # Bodge: until we move from slimit to calmjs
-            stdout = open(devnull, "w")
-            stdout = __stdout__
-            stderr = __stderr__
 
             return element
 
@@ -97,7 +104,7 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
             div.find('h3', attrs= {'class' : re.compile('sellerName')}).text)
         location = self.__quote_cleaner( \
             div.find('div', attrs={'class' : re.compile('address')}).text)
-        image_urls = ':'.join(get_embedded_image_urls())
+        image_urls = ' '.join(get_embedded_image_urls())
 
         # Construct the auction object
         auction = LiveAuctioneersAuction(id=str(auction_id))
@@ -214,6 +221,8 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
         except KeyError:
             pass
 
+        print('returning auction')
+        print(auction)
         return auction
 
     def __parse_auction_page(self, soup, auction_id):
@@ -306,12 +315,16 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
         return profile, soup.prettify()
 
     def _scrape_search_page(self, uri):
+        print(uri)
         soup = self._get_page(uri)
         results_grid = soup.find_all('div', attrs={'class' : re.compile('item-title-container')})
 
         output={}
         for result in results_grid:
-            href = result.find('a')['href']
+            link = result.find('a')
+            if link is None:
+                continue
+            href = link['href']
             auction_id = href.split('/')[2].split('_')[0]
             output[auction_id] = SearchResult( \
                 name=result.text, uri=self.base_auction_uri.format(auction_id))
