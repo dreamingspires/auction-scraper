@@ -15,26 +15,26 @@ poetry install
 poetry build
 ```
 
-Source and wheel files are built into `ebay_scraper/dist`.
+Source and wheel files are built into `auction_scraper/dist`.
 
 Install it across your user with `pip`, outside the venv:
 ```bash
 cd ./dist
-python3 -m pip install --user ./ebay_scraper-0.0.1-py3-none-any.whl
+python3 -m pip install --user ./auction_scraper-0.0.1-py3-none-any.whl
 ```
 
 or
 
 ```bash
 cd ./dist
-pip install ./ebay_scraper-0.0.1-py3-none-any.whl
+pip install ./auction_scraper-0.0.1-py3-none-any.whl
 ```
 
 Run `auction-scraper` to invoke the utility.
 
 ## Usage
 
-`auction-scraper` will scrape data from auctions, profiles, and searches on eBay.  Resulting textual data is written to a `sqlite3` database, with images and backup web pages optionally being written to a _data directory_.
+`auction-scraper` will scrape data from auctions, profiles, and searches on the specified auction site.  Resulting textual data is written to a `sqlite3` database, with images and backup web pages optionally being written to a _data directory_.
 
 The tool is invoked as:
 
@@ -76,7 +76,7 @@ Commands:
 ```
 
 ### Auction mode
-In auction mode, an auction must be specified as either a unique _auction ID_ or as a URL.  The textual data is scraped into the `[BACKEND]_auctions` table of `DB_PATH`, the page is scraped into `DATA_LOCATION/ebay/auctions`, and the images into `DATA_LOCATION/ebay/images`.  The `--base-url` option determines the base URL from which to resolve _eBay auction IDs_ if specified, defaulting to `https://www.ebay.com`.
+In auction mode, an auction must be specified as either a unique _auction ID_ or as a URL.  The textual data is scraped into the `[BACKEND]_auctions` table of `DB_PATH`, the page is scraped into `[data-location]/[BACKEND]/auctions`, and the images into `[data-location]/[BACKEND]/images`.  The `--base-url` option determines the base URL from which to resolve _auction IDs_, _profile IDs_, and search _query strings_ if specified, otherwise defaulting to the default for the specified backend.
 
 Example usage:
 
@@ -92,7 +92,7 @@ auction-scraper --data-location=./data --save-images --save-pages db.db liveauct
 ```
 
 ### Profile mode
-In profile mode, a profile must be specified as either a unique _eBay username_ or as a URL.  The textual data is scraped into the `ebay_profiles` table of `DB_PATH`, and the page is scraped into `DATA_LOCATION/ebay/profiles`.  The `--base-url` option determines the base URL from which to resolve _eBay username_ if specified, defaulting to `https://www.ebay.com`.
+In profile mode, a profile must be specified as either a unique _user ID_ or as a URL.  The textual data is scraped into the `[BACKEND]_profiles` table of `DB_PATH`, and the page is scraped into `[data-location]/[BACKEND]/profiles`.  The `--base-url` option determines the base URL from which to resolve _auction IDs_, _profile IDs_, and search _query strings_ if specified, otherwise defaulting to the default for the specified backend.
 
 Example usage:
 
@@ -109,7 +109,7 @@ auction-scraper --data-location=./data --save-pages db.db liveauctioneers profil
 
 
 ### Search mode
-In search mode, at least one `QUERY_STRING` must be provided alongside `N_RESULTS`.  It will scrape the auctions pertaining to the top `N_RESULTS` results from the `QUERY_STRING`.  The `--base-url` option determines the base URL from which to resolve the search specified.
+In search mode, at least one `QUERY_STRING` must be provided alongside `N_RESULTS`.  It will scrape the auctions pertaining to the top `N_RESULTS` results from the `QUERY_STRING`.  The `--base-url` option determines the base URL from which to resolve the search if specified, otherwise defaulting to the default for the specified backend.
 
 Example usage:
 ```bash
@@ -125,68 +125,68 @@ Each backend of `auction-scraper` can also be invoked as a Python library to aut
 The resulting scraper exposes methods to scrape auction, profile, and search pages into these SQLAlchemy model objects, according to the following interface:
 
 ```
-    def scrape_auction(self, auction, save_page=False, save_images=False):
-        """
-        Scrapes an auction page, specified by either a unique auction ID
-        or a URI.  Returns an auction model containing the scraped data.
-        If specified by auction ID, constructs the URI using self.base_uri.
-        If self.page_save_path is set, writes out the downloaded pages to disk at
-        the given path according to the naming convention specified by
-        self.auction_save_name.
-        Returns a BaseAuction
-        """
+def scrape_auction(self, auction, save_page=False, save_images=False):
+    """
+    Scrapes an auction page, specified by either a unique auction ID
+    or a URI.  Returns an auction model containing the scraped data.
+    If specified by auction ID, constructs the URI using self.base_uri.
+    If self.page_save_path is set, writes out the downloaded pages to disk at
+    the given path according to the naming convention specified by
+    self.auction_save_name.
+    Returns a BaseAuction
+    """
 ```
 
 ```
-    def scrape_profile(self, profile, save_page=False):
-        """
-        Scrapes a profile page, specified by either a unique profile ID
-        or a URI.  Returns an profile model containing the scraped data.
-        If specified by profile ID, constructs the URI using self.base_uri.
-        If self.page_save_path is set, writes out the downloaded pages to disk at
-        the given path according to the naming convention specified by
-        self.profile_save_name.
-        Returns a BaseProfile
-        """
+def scrape_profile(self, profile, save_page=False):
+    """
+    Scrapes a profile page, specified by either a unique profile ID
+    or a URI.  Returns an profile model containing the scraped data.
+    If specified by profile ID, constructs the URI using self.base_uri.
+    If self.page_save_path is set, writes out the downloaded pages to disk at
+    the given path according to the naming convention specified by
+    self.profile_save_name.
+    Returns a BaseProfile
+    """
 ```
 
 ```
-    def scrape_search(self, query_string, n_results=None, save_page=False,
-            save_images=False):
-        """
-        Scrapes a search page, specified by either a query_string and n_results,
-        or by a unique URI.
-        If specified by query_string, de-paginates the results and returns up
-        to n_results results.  If n_results is None, returns all results.
-        If specified by a search_uri, returns just the results on the page.
-        Returns a list [SearchResult]
-        """
+def scrape_search(self, query_string, n_results=None, save_page=False,
+        save_images=False):
+    """
+    Scrapes a search page, specified by either a query_string and n_results,
+    or by a unique URI.
+    If specified by query_string, de-paginates the results and returns up
+    to n_results results.  If n_results is None, returns all results.
+    If specified by a search_uri, returns just the results on the page.
+    Returns a list [SearchResult]
+    """
 ```
 
 ```
-    def scrape_auction_to_db(self, auction, save_page=False, save_images=False):
-        """
-        Scrape an auction page, writing the resulting page to the database.
-        Returns a BaseAuction
-        """
+def scrape_auction_to_db(self, auction, save_page=False, save_images=False):
+    """
+    Scrape an auction page, writing the resulting page to the database.
+    Returns a BaseAuction
+    """
 ```
 
 ```
-    def scrape_profile_to_db(self, profile, save_page=False):
-        """
-        Scrape a profile page, writing the resulting profile to the database.
-        Returns a BaseProfile
-        """
+def scrape_profile_to_db(self, profile, save_page=False):
+    """
+    Scrape a profile page, writing the resulting profile to the database.
+    Returns a BaseProfile
+    """
 ```
 
 ```
-    def scrape_search_to_db(self, query_strings, n_results=None, \
-            save_page=False, save_images=False):
-        """
-        Scrape a set of query_strings, writing the resulting auctions and profiles
-        to the database.
-        Returns a tuple ([BaseAuction], [BaseProfile])
-        """
+def scrape_search_to_db(self, query_strings, n_results=None, \
+        save_page=False, save_images=False):
+    """
+    Scrape a set of query_strings, writing the resulting auctions and profiles
+    to the database.
+    Returns a tuple ([BaseAuction], [BaseProfile])
+    """
 ```
 
 ## Building new backends
@@ -194,14 +194,25 @@ All backends live at `action_scraper/scrapers` in their own specific directory. 
 
 The `AuctionScraper` class must extend `AbstractAuctionScraper` and implement the following methods:
 ```python3
-    # Given a uri, scrape the auction page into an auction object (of type BaseAuction)
-    def _scrape_auction_page(self, uri)
-    
-    # Given a uri, scrape the profile page into an profile object (of type BaseAuction)
-    def _scrape_profile_page(self, uri)
-    
-    # Given a uri, scrape the search page into a list of results (of type [SearchResult])
-    def _scrape_search_page(self, uri)
+# Given a uri, scrape the auction page into an auction object (of type BaseAuction)
+def _scrape_auction_page(self, uri)
+
+# Given a uri, scrape the profile page into an profile object (of type BaseAuction)
+def _scrape_profile_page(self, uri)
+
+# Given a uri, scrape the search page into a list of results (of type [SearchResult])
+def _scrape_search_page(self, uri)
+```
+
+It must also supply defaults to the following variables:
+```python3
+auction_table
+profile_table
+base_uri
+auction_suffix
+profile_suffix
+search_suffix
+backend_name
 ```
 
 ## Authors
