@@ -190,6 +190,19 @@ The resulting scraper exposes methods to scrape auction, profile, and search pag
 ```
 
 ## Building new backends
+All backends live at `action_scraper/scrapers` in their own specific directory.  It should implement the abstract class `auction_scraper.abstract_scraper.AbstractAuctionScraper` in a file `scraper.py`, and the abstract SQLAlchemy models `auction_scraper.abstract_models.BaseAuction` and `auction_scraper.abstract_models.BaseProfile` in `models.py`.
+
+The `AuctionScraper` class must extend `AbstractAuctionScraper` and implement the following methods:
+```python3
+    # Given a uri, scrape the auction page into an auction object (of type BaseAuction)
+    def _scrape_auction_page(self, uri)
+    
+    # Given a uri, scrape the profile page into an profile object (of type BaseAuction)
+    def _scrape_profile_page(self, uri)
+    
+    # Given a uri, scrape the search page into a list of results (of type [SearchResult])
+    def _scrape_search_page(self, uri)
+```
 
 ## Authors
 Edd Salkield <edd@salkield.uk>  - Main codebase
