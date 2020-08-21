@@ -1,3 +1,14 @@
+#   Copyright (c) 2020 Dreaming Spires
+#   This program is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+
 import typer
 from termcolor import colored
 import sys
@@ -33,8 +44,8 @@ def setup():
 def main(db_path: str = typer.Argument(..., help='The path of the sqlite database file to be written to'),
         backend: Backend = typer.Argument(..., help='The auction scraping backend'),
         data_location: str = typer.Option(None, help='The path additional image and html data is saved to'),
-        save_images: bool = typer.Option(False, help='Save images to data-location'),
-        save_pages: bool = typer.Option(False, help='Save pages to data-location'),
+        save_images: bool = typer.Option(False, help='Save images to data-location.  Requires --data-location'),
+        save_pages: bool = typer.Option(False, help='Save pages to data-location. Requires --data-location'),
         verbose: bool = False,
         base_uri: str = typer.Option(None, help='Override the base url used to resolve the auction site')):
     init_state['db_path'] = db_path

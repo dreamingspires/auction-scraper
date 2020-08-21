@@ -1,3 +1,14 @@
+#   Copyright (c) 2020 Dreaming Spires
+#   This program is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+
 from urllib.parse import urljoin, urlparse
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -182,6 +193,7 @@ class AbstractAuctionScraper():
         If self.page_save_path is set, writes out the downloaded pages to disk at
         the given path according to the naming convention specified by
         self.auction_save_name.
+        Returns a BaseAuction
         """
         if not isinstance(auction, str):
             raise ValueError('auction must be a str')
@@ -221,14 +233,14 @@ class AbstractAuctionScraper():
 
         return auction
 
-    def scrape_profile(self, profile, save_page=False):
-        """
+    def scrape_profile(self, profile, save_page=False): """
         Scrapes a profile page, specified by either a unique profile ID
         or a URI.  Returns an profile model containing the scraped data.
         If specified by profile ID, constructs the URI using self.base_uri.
         If self.page_save_path is set, writes out the downloaded pages to disk at
         the given path according to the naming convention specified by
         self.profile_save_name.
+        Returns a BaseProfile
         """
 
         if not isinstance(profile, str):
@@ -252,7 +264,6 @@ class AbstractAuctionScraper():
 
         return profile
 
-    # TODO: implement save_page
     def scrape_search(self, query_string, n_results=None, save_page=False,
             save_images=False):
         """
@@ -261,6 +272,7 @@ class AbstractAuctionScraper():
         If specified by query_string, de-paginates the results and returns up
         to n_results results.  If n_results is None, returns all results.
         If specified by a search_uri, returns just the results on the page.
+        Returns a list [SearchResult]
         """
 
         if save_page and not self.auction_save_path:
@@ -297,6 +309,10 @@ class AbstractAuctionScraper():
         return results
 
     def scrape_auction_to_db(self, auction, save_page=False, save_images=False):
+        """
+        Scrape an auction page, writing the resulting auction to the database.
+        Returns a BaseAuction
+        """
         auction = self.scrape_auction(auction, save_page, save_images)
         session = self.Session()
         session.merge(auction)
@@ -304,6 +320,10 @@ class AbstractAuctionScraper():
         return auction
     
     def scrape_profile_to_db(self, profile, save_page=False):
+        """
+        Scrape a profile page, writing the resulting profile to the database.
+        Returns a BaseProfile
+        """
         profile = self.scrape_profile(profile, save_page)
         session = self.Session()
         session.merge(profile)
@@ -312,6 +332,11 @@ class AbstractAuctionScraper():
 
     def scrape_search_to_db(self, query_strings, n_results=None, \
             save_page=False, save_images=False):
+        """
+        Scrape a set of query_strings, writing the resulting auctions and profiles
+        to the database.
+        Returns a tuple ([BaseAuction], [BaseProfile])
+        """
         if isinstance(query_strings, str):
             query_strings = [query_strings]
 
@@ -324,16 +349,20 @@ class AbstractAuctionScraper():
 
         scraped_profile_ids = set()
         exceptions = []
+        auctions = []
+        profiles = []
         for auction_id, search in results.items():
             try:
                 print('Scraping auction url {}'.format(search.uri))
                 auction = self.scrape_auction_to_db(search.uri, save_page, \
                     save_images)
+                auctions.append(auction)
                 profile_id = auction.seller_id
 
                 if profile_id is not None and profile_id not in scraped_profile_ids:
                     print('Scraping profile {}'.format(profile_id))
-                    self.scrape_profile_to_db(profile_id, save_page)
+                    profile = self.scrape_profile_to_db(profile_id, save_page)
+                    profiles.append(profile)
                     scraped_profile_ids.add(profile_id)
 
             except Exception as e:
@@ -342,6 +371,8 @@ class AbstractAuctionScraper():
                 # to the error messages that were output
                 print(f'Error processing auction {auction_id}')
                 print(traceback.format_exc())
+
+        return auctions, profiles
 
     def _scrape_auction_page(self, uri):
         raise NotImplementedError('Subclass implements this')
