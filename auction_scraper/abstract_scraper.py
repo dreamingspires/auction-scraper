@@ -247,7 +247,7 @@ class AbstractAuctionScraper():
         # Save if required
         if save_page:
             name = self.profile_save_name.format(profile.id)
-            with open(self.auction_save_path.joinpath(name), 'w') as f:
+            with open(self.profile_save_path.joinpath(name), 'w') as f:
                 f.write(html)
 
         return profile
