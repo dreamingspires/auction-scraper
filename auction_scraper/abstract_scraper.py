@@ -200,7 +200,6 @@ class AbstractAuctionScraper():
 
         auction_uri = self.base_auction_uri.format(auction) \
             if not validators.url(auction) else auction
-        print(auction_uri)
 
         if save_page and not self.auction_save_path:
             raise ValueError(
@@ -232,8 +231,10 @@ class AbstractAuctionScraper():
                 existing_image_paths)))
 
         return auction
+        
 
-    def scrape_profile(self, profile, save_page=False): """
+    def scrape_profile(self, profile, save_page=False):
+        """
         Scrapes a profile page, specified by either a unique profile ID
         or a URI.  Returns an profile model containing the scraped data.
         If specified by profile ID, constructs the URI using self.base_uri.

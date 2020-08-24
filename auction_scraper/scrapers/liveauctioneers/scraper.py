@@ -232,8 +232,6 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
         except KeyError:
             pass
 
-        print('returning auction')
-        print(auction)
         return auction
 
     def __parse_auction_page(self, soup, auction_id):
@@ -326,7 +324,6 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
         return profile, soup.prettify()
 
     def _scrape_search_page(self, uri):
-        print(uri)
         soup = self._get_page(uri)
         results_grid = soup.find_all('div', attrs={'class' : re.compile('item-title-container')})
 
