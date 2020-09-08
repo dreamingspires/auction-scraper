@@ -23,13 +23,13 @@ from auction_scraper.scrapers.ebay.scraper import \
     EbayAuctionScraper
 
 class Backend(Enum):
-    liveauctioneers = 'liveauctioneers'
     ebay = 'ebay'
+    liveauctioneers = 'liveauctioneers'
 
 # Required because apparently Typer doesn't support Enums that map to classes
 backend_dict = {
-        Backend.liveauctioneers: LiveAuctioneersAuctionScraper,
-        Backend.ebay : EbayAuctionScraper
+        Backend.ebay : EbayAuctionScraper,
+        Backend.liveauctioneers: LiveAuctioneersAuctionScraper
     }
 
 app = typer.Typer()
@@ -38,10 +38,10 @@ init_state = {'db_path': None, 'base_uri': None, 'data_location': None,
 state = {}
 
 def setup():
-    if state['backend'] == Backend.liveauctioneers:
-        scraper = LiveAuctioneersAuctionScraper(**init_state)
-    elif state['backend'] == Backend.ebay:
+    if state['backend'] == Backend.ebay:
         scraper = EbayAuctionScraper(**init_state)
+    elif state['backend'] == Backend.liveauctioneers:
+        scraper = LiveAuctioneersAuctionScraper(**init_state)
     else:
         raise ValueError('No valid scraper backend provided')
     return scraper
