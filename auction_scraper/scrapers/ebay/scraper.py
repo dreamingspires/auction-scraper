@@ -174,19 +174,21 @@ class EbayAuctionScraper(AbstractAuctionScraper):
             try:
                 raw_values['kw']
             except KeyError:
-                raise ValueError(f'No it (title) field available.  Consider using a different prefix.')
+                # No title field available in API.  Obtain it from the page instead
+                for c in soup.find('h1', id='itemTitle').contents:
+                    if isinstance(c, str):
+                        title_key = c
+                        break
             else:
                 title_key = 'kw'
         else:
             title_key = 'it'
 
-        if raw_values['kw'] != raw_values['it']:
-            print(colored(f'notify author: kw==it assumption incorrect for domain {url}.', 'red'))
         try:
             if raw_values['entityId'] != raw_values['entityName']:
-                print(colored(f'notify author: entityid==entityname assumption incorrect for domain {url}', 'red'))
+                print(f'notify author: entityid==entityname assumption incorrect for domain {url}')
         except KeyError:
-            print(colored('notify author: entityid or entityname does not exist for auction {}, for domain {}.'.format(raw_values['itemId'], url), 'red'))
+            print('notify author: entityid or entityname does not exist for auction {}, for domain {}.'.format(raw_values['itemId'], url))
         
         # Extract additional info
         image_urls = get_image_urls(raw_values)
