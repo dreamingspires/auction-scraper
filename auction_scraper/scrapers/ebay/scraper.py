@@ -19,6 +19,8 @@ from datetime import datetime
 from sqlalchemy_utils import Currency
 import json
 import unicodedata
+import dateutil.parser
+import re
 import contextlib
 
 @contextlib.contextmanager
@@ -42,7 +44,9 @@ class EbayAuctionScraper(AbstractAuctionScraper):
     base_uri = 'https://www.ebay.com'
     auction_suffix = '/itm/{}'
     profile_suffix = '/usr/{}'
-    search_suffix = '/sch/i.html?_nkw={}&_pgn={}&_skc={}'
+    search_suffix = '/sch/i.html?_nkw={}&_pgn={}&_skc=0' # If _skc=0 not specified, the resulting
+        # search list is significantly harder to scraper, not containing
+        # 'ListViewInner', or even auction IDs within the div
     backend_name = 'ebay'
 
     # the raw values that appear multiple times in the API
@@ -72,7 +76,6 @@ class EbayAuctionScraper(AbstractAuctionScraper):
             pass
 
         return d[k]
-
 
     def __parse_ancient_auction_soup(self, soup, duplicates):
         raise NotImplementedError
@@ -196,7 +199,7 @@ class EbayAuctionScraper(AbstractAuctionScraper):
 
         try:
             auction.title = unicodedata.normalize("NFKD", raw_values[title_key])
-        except KeyError:
+        except (KeyError, TypeError):
             pass
         except ValueError:
             print('auction {} received title {} of invalid type {}' \
@@ -212,7 +215,7 @@ class EbayAuctionScraper(AbstractAuctionScraper):
 
         try:
             auction.seller_id = str(raw_values['entityName'])
-        except KeyError:
+        except (KeyError, TypeError):
             pass
         except ValueError:
             print('auction {} received seller_id {} of invalid type {}' \
@@ -222,7 +225,7 @@ class EbayAuctionScraper(AbstractAuctionScraper):
         try:
             auction.start_time = datetime.utcfromtimestamp( \
                 int(raw_values['startTime'])/1000)
-        except KeyError:
+        except (KeyError, TypeError):
             pass
         except ValueError:
             print('auction {} received start_time {} of invalid type {}' \
@@ -232,7 +235,7 @@ class EbayAuctionScraper(AbstractAuctionScraper):
         try:
             auction.end_time = datetime.utcfromtimestamp( \
                 int(raw_values['endTime'])/1000)
-        except KeyError:
+        except (KeyError, TypeError):
             pass
         except ValueError:
             print('auction {} received end_time {} of invalid type {}' \
@@ -241,7 +244,7 @@ class EbayAuctionScraper(AbstractAuctionScraper):
 
         try:
             auction.n_bids = int(raw_values['bids'])
-        except KeyError:
+        except (KeyError, TypeError):
             pass
         except ValueError:
             print('auction {} received n_bids {} of invalid type {}' \
@@ -250,7 +253,7 @@ class EbayAuctionScraper(AbstractAuctionScraper):
 
         try:
             auction.currency = Currency(raw_values['ccode'])
-        except KeyError:
+        except (KeyError, TypeError):
             pass
         except ValueError:
             print('auction {} received currency {} of invalid type {}' \
@@ -259,7 +262,7 @@ class EbayAuctionScraper(AbstractAuctionScraper):
 
         try:
             auction.latest_price = str(float(raw_values['bidPriceDouble']))
-        except KeyError:
+        except (KeyError, TypeError):
             pass
         except ValueError:
             print('auction {} received latest_price {} of invalid type {}' \
@@ -268,7 +271,7 @@ class EbayAuctionScraper(AbstractAuctionScraper):
 
         try:
             auction.buy_now_price = str(float(raw_values['binPriceDouble']))
-        except KeyError:
+        except (KeyError, TypeError):
             pass
         except ValueError:
             print('auction {} received buy_now_price {} of invalid type {}' \
@@ -280,7 +283,7 @@ class EbayAuctionScraper(AbstractAuctionScraper):
 
         try:
             auction.locale = str(raw_values['locale'])
-        except KeyError:
+        except (KeyError, TypeError):
             pass
         except ValueError:
             print('auction {} received locale {} of invalid type {}' \
@@ -289,7 +292,7 @@ class EbayAuctionScraper(AbstractAuctionScraper):
 
         try:
             auction.quantity = int(raw_values['totalQty'])
-        except KeyError:
+        except (KeyError, TypeError):
             pass
         except ValueError:
             print('auction {} received quantity {} of invalid type {}' \
@@ -298,7 +301,7 @@ class EbayAuctionScraper(AbstractAuctionScraper):
 
         try:
             auction.video_url = str(raw_values['videoUrl'])
-        except KeyError:
+        except (KeyError, TypeError):
             pass
         except ValueError:
             print('auction {} received video_url {} of invalid type {}' \
@@ -314,12 +317,12 @@ class EbayAuctionScraper(AbstractAuctionScraper):
                 print('auction {} received vat_included {} of invalid type {}' \
                     .format(auction_id, raw_values['vatIncluded'], \
                         type(raw_values['vatIncluded'])))
-        except KeyError:
+        except (KeyError, TypeError):
             pass
 
         try:
             auction.domain = raw_values['currentDomain']
-        except KeyError:
+        except (KeyError, TypeError):
             pass
         except ValueError:
             print('auction {} received domain {} of invalid type {}' \
@@ -333,24 +336,9 @@ class EbayAuctionScraper(AbstractAuctionScraper):
         try:
             return self.__parse_2020_auction_soup(soup, self.auction_duplicates)
         except Exception:
-            try:
-                return self.__parse_2010_auction_soup(soup, self.auction_duplicates)
-            except Exception:
-                try:
-                    return self.__parse_ancient_auction_soup(soup, self.auction_duplicates)
-                except Exception:
-                    raise ValueError('Could not parse web page')
+            raise ValueError('Could not parse web page')
 
     def _scrape_auction_page(self, uri):
-        #auction_id = None
-        #for s in urlparse(uri).path.split('/')[2:]:
-        #    try:
-        #        auction_id = int(s)
-        #    except ValueError:
-        #        continue
-        #if auction_id is None:
-        #    raise ValueError('Invalid URL: does not specify an auction id')
-
         soup = self._get_page(uri)
         auction = self.__parse_auction_page(soup)
 
@@ -358,4 +346,126 @@ class EbayAuctionScraper(AbstractAuctionScraper):
         auction.uri = uri
         return auction, soup.prettify()
 
+    def __parse_2020_profile_soup(self, soup, profile_id):
+        # Extract profile attributes
+        description = soup.find('h2', attrs={'class': 'bio inline_value'}).get_text(strip=True)
+        member_info = soup.find('div', id='member_info')
+        #n_followers = member_info.find('span', text='Followers').find('span',
+        #        attrs={'class': 'info'}).text
+        n_followers = None  # Appears obfuscated
+        n_reviews = None    # Appears obfuscated
+        member_since = dateutil.parser.parse( \
+            member_info.find('span', text=re.compile('.*Member since:.*')) \
+                .parent.find('span', attrs={'class': 'info'}).get_text(strip=True))
+        location = member_info.find('span', attrs={'class': 'mem_loc'}).get_text(strip=True)
+        percent_positive_feedback = soup.find('div', attrs={'class': 'perctg'}) \
+                .get_text(strip=True).split('%')[0]
 
+        # Construct the profile object
+        profile = EbayProfile(id=str(profile_id))
+        profile.name = str(profile_id)
+        profile.description = description
+
+        try:
+            profile.n_followers = int(n_followers)
+        except TypeError:
+            pass
+        except ValueError:
+            print('profile {} received n_followers {} of invalid type {}' \
+                .format(profile_id, n_followers, \
+                    type(n_followers)))
+        try:
+            profile.n_reviews = int(n_reviews)
+        except TypeError:
+            pass
+        except ValueError:
+            print('profile {} received n_reviews {} of invalid type {}' \
+                .format(profile_id, n_reviews, \
+                    type(n_reviews)))
+
+        profile.member_since = member_since
+
+        try:
+            profile.location = str(location)
+        except ValueError:
+            print('profile {} received location {} of invalid type {}' \
+                .format(profile_id, location, \
+                    type(location)))
+
+        try:
+            profile.percent_positive_feedback = int(percent_positive_feedback)
+        except TypeError:
+            pass
+        except ValueError:
+            print('profile {} received percent_positive_feedback {} of invalid type {}' \
+                .format(profile_id, percent_positive_feedback, \
+                    type(percent_positive_feedback)))
+
+        return profile
+
+    def __parse_profile_page(self, soup, profile_id):
+        # Try various parsing methods until one works
+        try:
+            return self.__parse_2020_profile_soup(soup, profile_id)
+        except Exception:
+            raise ValueError('Could not parse web page')
+
+    def _scrape_profile_page(self, uri):
+        profile_id = urlparse(uri).path.split('/')[-1]  # TODO: is this correct?
+        soup = self._get_page(uri)
+        profile = self.__parse_profile_page(soup, profile_id)
+
+        # Add the uri to the profile
+        profile.uri = uri
+        return profile, soup.prettify()
+
+    def __parse_2020_search_soup(self, soup):
+        auctions_list = soup.find('ul', id='ListViewInner')
+        if auctions_list is None:
+            auctions_list = soup.find('ul', {'class': 'srp-results'})
+        results = auctions_list.find_all('li', recursive=False)
+
+        auctions = {}
+        for result in results:
+            # Filter out sponsored results
+            if result.find('div', attrs={'class': 'promoted-lv'}) or \
+                    result.find('div', attrs={'class': 's-item__title--tagblock'}) or \
+                    result.find('a', href=re.compile('.*pulsar.*')) or \
+                    result.find('span', attrs={'class', re.compile('.*SPONSORED.*')}):
+                continue
+
+            try:
+                auction_id = int(result.attrs['listingid'])
+            except KeyError:
+                print("Found a non-item. Skipping...")
+                print(result.prettify())
+                continue
+            except ValueError:
+                print("Could not convert auction ID {auction_id} to int")
+
+            name = ' '.join(result.find('h3').find('a').find( \
+                    text=True, recursive=False).split())
+            # Strip tracking query parameters from the uri
+            tracking_uri = result.find('h3').find('a').attrs['href']
+            uri = urljoin(tracking_uri, urlparse(tracking_uri).path)
+
+            auctions[auction_id] = SearchResult(name, uri)
+        return auctions
+
+
+    def __parse_search_page(self, soup):
+        # Try various parsing methods until one works
+        try:
+            return self.__parse_2020_search_soup(soup)
+        except Exception:
+            raise ValueError('Could not parse web page')
+
+    def _scrape_search_page(self, uri):
+        soup = self._get_page(uri)
+        return self.__parse_search_page(soup), soup.prettify()
+
+    def _generate_search_uri(self, query_string, n_page):
+        if not isinstance(n_page, int) or n_page < 1:
+            raise ValueError('n_results must be an int, greater than 0')
+    
+        return self.base_search_uri.format(query_string, n_page)

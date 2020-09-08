@@ -138,7 +138,6 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
                     type(element['description'])))
 
         try:
-            # TODO: convert timestamp to DateTime as required
             auction.start_time = datetime.utcfromtimestamp( \
                 element['availableTs'])
         except KeyError:
@@ -149,7 +148,6 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
                     type(element['availableTs'])))
 
         try:
-            # TODO: convert timestamp to DateTime as required
             auction.end_time = datetime.utcfromtimestamp( \
                 element['saleStartTs'])
         except KeyError:
