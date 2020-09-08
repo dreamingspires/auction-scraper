@@ -159,7 +159,7 @@ def scrape_search(self, query_string, n_results=None, save_page=False,
     If specified by query_string, de-paginates the results and returns up
     to n_results results.  If n_results is None, returns all results.
     If specified by a search_uri, returns just the results on the page.
-    Returns a list [SearchResult]
+    Returns a dict {auction_id: SearchResult}
     """
 ```
 
@@ -200,7 +200,7 @@ def _scrape_auction_page(self, uri)
 # Given a uri, scrape the profile page into an profile object (of type BaseAuction)
 def _scrape_profile_page(self, uri)
 
-# Given a uri, scrape the search page into a list of results (of type [SearchResult])
+# Given a uri, scrape the search page into a list of results (of type {auction_id: SearchResult})
 def _scrape_search_page(self, uri)
 ```
 
