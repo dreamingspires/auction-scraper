@@ -2,7 +2,7 @@
 
 >  Scrape auction data auction sites into a sqlite database
 
-> Currently supports: liveauctioneers
+> Currently supports: ebay, liveauctioneers
 
 > Can be used as a CLI tool, or interfaced with directly
 
@@ -39,23 +39,23 @@ Run `auction-scraper` to invoke the utility.
 The tool is invoked as:
 
 ```
-Usage: auction-scraper [OPTIONS] DB_PATH BACKEND:[liveauctioneers] COMMAND
-                       [ARGS]...
+Usage: auction-scraper [OPTIONS] DB_PATH BACKEND:[ebay|liveauctioneers]
+                       COMMAND [ARGS]...
 
 Options:
   DB_PATH                         The path of the sqlite database file to be
                                   written to  [required]
 
-  BACKEND:[liveauctioneers]       The auction scraping backend  [required]
+  BACKEND:[ebay|liveauctioneers]  The auction scraping backend  [required]
   --data-location TEXT            The path additional image and html data is
                                   saved to
 
   --save-images / --no-save-images
-                                  Save images to data-location  [default:
-                                  False]
+                                  Save images to data-location.  Requires
+                                  --data-location  [default: False]
 
-  --save-pages / --no-save-pages  Save pages to data-location  [default:
-                                  False]
+  --save-pages / --no-save-pages  Save pages to data-location. Requires
+                                  --data-location  [default: False]
 
   --verbose / --no-verbose        [default: False]
   --base-uri TEXT                 Override the base url used to resolve the
