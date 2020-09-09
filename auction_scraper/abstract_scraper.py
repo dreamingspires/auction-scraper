@@ -273,7 +273,7 @@ class AbstractAuctionScraper():
         If specified by query_string, de-paginates the results and returns up
         to n_results results.  If n_results is None, returns all results.
         If specified by a search_uri, returns just the results on the page.
-        Returns a list [SearchResult]
+        Returns a dict {auction_id: SearchResult}
         """
 
         if save_page and not self.auction_save_path:

@@ -21,14 +21,18 @@ from auction_scraper.scrapers.catawiki.scraper import \
     CataWikiAuctionScraper
 from auction_scraper.scrapers.liveauctioneers.scraper import \
     LiveAuctioneersAuctionScraper
+from auction_scraper.scrapers.ebay.scraper import \
+    EbayAuctionScraper
 
 class Backend(Enum):
     catawiki = 'catawiki'
+    ebay = 'ebay'
     liveauctioneers = 'liveauctioneers'
 
 # Required because apparently Typer doesn't support Enums that map to classes
 backend_dict = {
         Backend.catawiki: CataWikiAuctionScraper,
+        Backend.ebay : EbayAuctionScraper,
         Backend.liveauctioneers: LiveAuctioneersAuctionScraper,
     }
 
@@ -40,6 +44,8 @@ state = {}
 def setup():
     if state['backend'] == Backend.catawiki:
         scraper = CataWikiAuctionScraper(**init_state)
+    elif state['backend'] == Backend.ebay:
+        scraper = EbayAuctionScraper(**init_state)
     elif state['backend'] == Backend.liveauctioneers:
         scraper = LiveAuctioneersAuctionScraper(**init_state)
     else:
