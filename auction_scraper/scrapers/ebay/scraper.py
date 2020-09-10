@@ -166,8 +166,6 @@ class EbayAuctionScraper(AbstractAuctionScraper):
         # Get raw values, validating API assumptions
         raw_values = get_embedded_json()
         #pdb.set_trace()
-        # TODO: some auctions don't include the title in their raw values
-        # e.g. https://www.ebay.co.uk/itm/Pair-of-Mambila-Statues-Cameroon/333648332890
         try:
             raw_values['it']
         except KeyError:
@@ -196,7 +194,6 @@ class EbayAuctionScraper(AbstractAuctionScraper):
         desc = iframe.text
 
         # Construct the auction object
-        # TODO: verbose mode to print which keys were missing (KeyErrors)
         auction = EbayAuction(id=int(raw_values['itemId']))
 
         try:
@@ -413,7 +410,7 @@ class EbayAuctionScraper(AbstractAuctionScraper):
             raise ValueError('Could not parse web page')
 
     def _scrape_profile_page(self, uri):
-        profile_id = urlparse(uri).path.split('/')[-1]  # TODO: is this correct?
+        profile_id = urlparse(uri).path.split('/')[2]
         soup = self._get_page(uri)
         profile = self.__parse_profile_page(soup, profile_id)
 

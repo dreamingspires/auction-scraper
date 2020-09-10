@@ -18,6 +18,7 @@ from slimit import ast
 import re
 from datetime import datetime
 from pathlib import Path
+from sqlalchemy_utils import Currency
 import contextlib
 
 @contextlib.contextmanager
@@ -110,7 +111,6 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
 
         # Extract additional auctioneer info
         div = soup.find('div', attrs={'class' : re.compile('auctioneerInfo')})
-        # TODO: try/except on these
         auctioneer = self.__quote_cleaner( \
             div.find('h3', attrs= {'class' : re.compile('sellerName')}).text)
         location = self.__quote_cleaner( \
@@ -166,8 +166,7 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
                 .format(auction_id, element['bidCount'], \
                     type(element['bidCount'])))
 
-        # TODO: ensure the currency is of the correct format
-        auction.currency = 'USD'
+        auction.currency = Currency('USD')
         try:
             auction.latest_price = float(element['salePrice'])
         except KeyError:
