@@ -2,3 +2,4 @@
 *.pyc
 */__pycache__
 auction_scraper.egg-info/
+dist/

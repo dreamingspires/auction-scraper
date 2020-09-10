@@ -3,6 +3,10 @@ name = "auction-scraper"
 version = "0.1.0"
 description = ""
 authors = ["Edd Salkield <edd@salkield.uk>"]
+packages = [
+    { include = "auction_scraper" },
+    { include = "main.py" }
+]
 
 [tool.poetry.dependencies]
 python = "^3.8"
