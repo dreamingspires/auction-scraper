@@ -21,7 +21,7 @@ import traceback
 from pathlib import Path
 from termcolor import colored
 
-from auction_scraper.abstract_models import Base, BaseAuction, BaseProfile
+from auction_scraper.abstract_models import Base
 
 # From https://stackoverflow.com/questions/18092354/python-split-string-without-splitting-escaped-character#21107911
 def _escape_split(s, delim):
