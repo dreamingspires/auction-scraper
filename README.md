@@ -6,31 +6,13 @@
 
 > Can be used as a CLI tool, or interfaced with directly
 
-## Building and installation
+## Installation
 
-Ensure poetry is [installed](https://python-poetry.org/docs/#installation).  Then from this directory install dependencies into the poetry virtual environment and build:
+You can [install with pip](https://pypi.org/project/auction-scraper/0.2.1/):
 
-```bash
-poetry install
-poetry build
+``` 
+pip install auction-scraper
 ```
-
-Source and wheel files are built into `auction_scraper/dist`.
-
-Install it across your user with `pip`, outside the venv:
-```bash
-cd ./dist
-python3 -m pip install --user ./auction_scraper-0.0.1-py3-none-any.whl
-```
-
-or
-
-```bash
-cd ./dist
-pip install ./auction_scraper-0.0.1-py3-none-any.whl
-```
-
-Run `auction-scraper` to invoke the utility.
 
 ## Usage
 
@@ -119,6 +101,32 @@ auction-scraper db.db search 1 "mambila art"
 # Search ten results by two search terms, scraping images and pages into data-location
 auction-scraper --data-location=./data --save-images --save-pages db.db search 10 "mambila" "mambilla"
 ```
+
+## Building from source
+
+Ensure poetry is [installed](https://python-poetry.org/docs/#installation).  Then from this directory install dependencies into the poetry virtual environment and build:
+
+```bash
+poetry install
+poetry build
+```
+
+Source and wheel files are built into `auction_scraper/dist`.
+
+Install it across your user with `pip`, outside the venv:
+```bash
+cd ./dist
+python3 -m pip install --user ./auction_scraper-0.0.1-py3-none-any.whl
+```
+
+or
+
+```bash
+cd ./dist
+pip install ./auction_scraper-0.0.1-py3-none-any.whl
+```
+
+Run `auction-scraper` to invoke the utility.
 
 ## Interfacing with the API
 Each backend of `auction-scraper` can also be invoked as a Python library to automate its operation.  The backends implement the abstract class `auction_scraper.abstract_scraper.AbstractAuctionScraper`, alongside the abstract SQLAlchemy models `auction_scraper.abstract_models.BaseAuction` and `auction_scraper.abstract_models.BaseProfile`.
