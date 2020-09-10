@@ -102,6 +102,44 @@ auction-scraper db.db search 1 "mambila art"
 auction-scraper --data-location=./data --save-images --save-pages db.db search 10 "mambila" "mambilla"
 ```
 
+## Running continuously using systemd
+`auction-scraper@.service` and `auction-scraper@.timer`, once loaded by systemd, can be used to schedule the running of `auction-scraper` with user-given arguments according to a schedule.
+
+### Running as a systemd root service
+
+Copy `auction-scraper@.service` and `auction-scraper@.timer` to `/etc/systemd/system/`.
+
+Modify `auction-scraper@.timer` to specify the schedule you require.
+
+Reload the system daemons.  As root:
+```bash
+systemctl daemon-reload
+```
+
+Run (start now) and enable (restart on boot) the systemd-timer, specifying the given arguments, within quotes, after the '@'.  For example, as root:
+```bash
+systemctl enable --now auction-scraper@"db.db liveauctioneers search 10 mambila".timer
+```
+
+Find information about your running timers with:
+```bash
+systemctl list-timers
+```
+
+Stop your currently running timer with:
+```bash
+systemctl stop auction-scraper@"db.db liveauctioneers search 10 mambila".timer
+```
+
+Disable your currently running timer with:
+```bash
+systemctl disable auction-scraper@"db.db liveauctioneers search 10 mambila".timer
+```
+
+A new timer is created for each unique argument string, so the arguments must be specified when stopping or disabling the timer.
+
+Some modification may be required to run as a user service, including placing the service and timer files in `~/.local/share/systemd/user/`.
+
 ## Building from source
 
 Ensure poetry is [installed](https://python-poetry.org/docs/#installation).  Then from this directory install dependencies into the poetry virtual environment and build:
