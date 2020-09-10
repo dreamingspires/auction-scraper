@@ -7,6 +7,9 @@ packages = [
     { include = "auction_scraper" },
     { include = "main.py" }
 ]
+readme = "README.md"
+homepage = "https://github.com/dreamingspires/auction-scraper"
+repository = "https://github.com/dreamingspires/auction-scraper"
 
 [tool.poetry.dependencies]
 python = "^3.8"
