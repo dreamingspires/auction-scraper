@@ -1,0 +1,9 @@
+[Unit]
+Description=Run auction-scraper every six hours
+
+[Timer]
+OnActiveSec=0
+OnUnitActiveSec=6h
+
+[Install]
+WantedBy=timers.target

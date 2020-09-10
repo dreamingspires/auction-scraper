@@ -1,0 +1,9 @@
+[Unit]
+Description=Auction Scraper
+
+[Service]
+Environment="ARGS=%I"
+ExecStart=/usr/local/bin/auction-scraper $ARGS
+
+[Install]
+WantedBy=default.target
