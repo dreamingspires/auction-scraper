@@ -69,15 +69,19 @@ def auction(auction: typing.List[str] = typer.Argument(..., help= \
     Scrapes an auction site auction page.
     """
     scraper = setup()
+    exception = False
     for a in auction:
         try:
             scraper.scrape_auction_to_db(a, state['save_pages'], \
                 state['save_images'])
         except Exception as e:
+            exception = True
             if init_state['verbose']:
                 print(colored(traceback.format_exc(), 'red'))
             else:
                 print(colored(e, 'red'))
+    if exception:
+        sys.exit(1)
 
 @app.command()
 def profile(profile: typing.List[str] = typer.Argument(..., help= \
@@ -86,14 +90,18 @@ def profile(profile: typing.List[str] = typer.Argument(..., help= \
     Scrapes an auction site profile page.
     """
     scraper = setup()
+    exception = False
     for p in profile:
         try:
             scraper.scrape_profile_to_db(p, state['save_pages'])
         except Exception as e:
+            exception = True
             if init_state['verbose']:
                 print(colored(traceback.format_exc(), 'red'))
             else:
                 print(colored(e, 'red'))
+    if exception:
+        sys.exit(1)
 
 @app.command()
 def search(n_results: int = typer.Argument(..., help='The number of results to return'),
@@ -103,14 +111,18 @@ def search(n_results: int = typer.Argument(..., help='The number of results to r
     Scrapes the auction and seller profile for each result.
     """
     scraper = setup()
+    exception = False
     try:
         scraper.scrape_search_to_db(query_string, n_results, 
             state['save_pages'], state['save_images'])
     except Exception as e:
+        exception = True
         if init_state['verbose']:
             print(colored(traceback.format_exc(), 'red'))
         else:
             print(colored(e, 'red'))
+    if exception:
+        sys.exit(1)
 
 def main():
     app()

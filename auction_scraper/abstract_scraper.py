@@ -367,11 +367,12 @@ class AbstractAuctionScraper():
                     scraped_profile_ids.add(profile_id)
 
             except Exception as e:
-                # TODO: instead of colouring the output, we should return a 
-                # dict mapping the auctions and profiles that failed to scrape
-                # to the error messages that were output
+                exceptions.append(e)
                 print(f'Error processing auction {auction_id}')
                 print(traceback.format_exc())
+
+        if exceptions:
+            raise Exception(exceptions)
 
         return auctions, profiles
 
