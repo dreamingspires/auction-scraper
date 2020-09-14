@@ -2,7 +2,7 @@
 
 >  Scrape auction data auction sites into a sqlite database
 
-> Currently supports: ebay, liveauctioneers
+> Currently supports: catawiki, ebay, liveauctioneers
 
 > Can be used as a CLI tool, or interfaced with directly
 

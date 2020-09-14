@@ -9,14 +9,20 @@
 #   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #   GNU General Public License for more details.
 
+"""
+The database models for data scraped from catawiki.com
+"""
+
+from sqlalchemy import Column, Boolean, DateTime, Float, Integer, String
+from sqlalchemy.types import Text
 from auction_scraper.abstract_models import BaseAuction, BaseProfile, \
     BaseAuctionRelationshipMeta
-from auction_scraper.abstract_scraper import AbstractAuctionScraper
-from sqlalchemy import Table, Column, Boolean, DateTime, Float, Integer, String
-from sqlalchemy.types import Text
 
 # Define the database models
 class CataWikiProfile(BaseProfile):
+    """
+    The database model for a user's profile on catawiki.com
+    """
     __tablename__ = 'catawiki_profiles'
     member_since = Column(DateTime)
     feedback_score = Column(Float)
@@ -28,11 +34,14 @@ class CataWikiProfile(BaseProfile):
 class CataWikiAuction(BaseAuction, metaclass=BaseAuctionRelationshipMeta, \
         profile_table='CataWikiProfile', \
         profile_table_name='catawiki_profiles'):
+    """
+    The database model for an auction on catawiki.com
+    """
     __tablename__ = 'catawiki_auctions'
     subtitle = Column(Text())
     lot_details = Column(Text())
-    expert_estimate_max = Column(String(16))
-    expert_estimate_min = Column(String(16))
+    expert_estimate_max = Column(Integer)
+    expert_estimate_min = Column(Integer)
     reserve_price_met = Column(Boolean)
     closed = Column(Boolean)
     sold = Column(Boolean)

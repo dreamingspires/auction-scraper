@@ -8,103 +8,146 @@
 #   but WITHOUT ANY WARRANTY; without even the implied warranty of
 #   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #   GNU General Public License for more details.
+"""
+A scraper for catawiki.com
+"""
 
-import contextlib
 from datetime import datetime
-from functools import reduce
 import json
-from os import devnull
-from pathlib import Path
-import re
-import requests
-import sys
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urljoin
 
 from auction_scraper.abstract_scraper import AbstractAuctionScraper, \
     SearchResult
 from auction_scraper.scrapers.catawiki.models import \
     CataWikiAuction, CataWikiProfile
 
-def fill_in_field(table, table_field_name, data, data_field_names, f = lambda x: x):
+def fill_in_field(table, table_field_name,
+                  data, data_field_names,
+                  default,
+                  process=lambda x: x):
+    """
+    Extract from data the field at path data_field_names \
+    and assign it to property table_field_name of table
+    Optionally processing it with a function
+    """
     try:
-        data_field = reduce(lambda x, n: x[n] if x else None, data_field_names, data)
+        data_field = data
+        for field_name in data_field_names:
+            if not data_field:
+                break
+            data_field = data_field[field_name]
         if data_field:
-            setattr(table, table_field_name, f(data_field))
+            setattr(table, table_field_name, process(data_field))
+        else:
+            setattr(table, table_field_name, default)
     except KeyError:
         print(f'DEBUG: website data missing field {data_field_names}')
     except ValueError:
-        print(f'received {table_field_name} {data_field} of invalid type {type(f(data_field))}')
+        print(f'received {table_field_name} {data_field} \
+             of invalid type {type(process(data_field))}'
+             )
 
 class CataWikiAuctionScraper(AbstractAuctionScraper):
+    """
+    A scraper for catawiki.com
+    """
     auction_table = CataWikiAuction
     profile_table = CataWikiProfile
     base_uri = 'https://www.catawiki.com'
     auction_suffix = '/l/{}'
     profile_suffix = '/u/{}'
-    #search_suffix = '/s/?q={}&page={}&sort=relevancy_desc'
     search_suffix = '/buyer/api/v1/search?q={}&page={}'
     backend_name = 'catawiki'
 
-    def __quote_cleaner(self, phrase):
-        try:
-            return int(phrase)
-        except ValueError:
-            if isinstance(phrase, str):
-                if phrase == 'true':
-                    return True
-                elif phrase == 'false':
-                    return False
-                elif phrase == 'null':
-                    return None
-                else:
-                    if phrase[0]=='"' and phrase[-1]=='"':
-                        return phrase[1:-1]
-                    else:
-                        return phrase
-            else:
-                raise ValueError('Unknown type')
+    currency = 'EUR'
 
-    def __searcher(self, soup, phrase, phrase2):
-        soupstr = str(soup)
-        start_index = soupstr.find(phrase)
-        end_index = soupstr.find(phrase2, start_index+len(phrase))
-        output = soupstr[start_index+len(phrase):end_index]
-        return output
+    bidding_api_uri_suffix = \
+            f'/buyer/api/v2/lots/{{}}/bidding?currency_code={currency}'
+    bids_api_uri_suffix = \
+            f'/buyer/api/v1/lots/{{}}/bids?currency={currency}'
+
+    base_bidding_api_uri = urljoin(base_uri, bidding_api_uri_suffix)
+    base_bids_api_uri = urljoin(base_uri, bids_api_uri_suffix)
 
     def __parse_2020_auction_soup(self, soup):
-        data = json.loads(soup.find("div", attrs={"class": "lot-details-page-wrapper"})['data-props'])
+        json_div_attrs = {"class": "lot-details-page-wrapper"}
+        data_json = soup.find("div", attrs=json_div_attrs)['data-props']
+        data = json.loads(data_json)
 
         auction_id = data['lotId']
 
         # Construct the auction object
         auction = CataWikiAuction(id=str(auction_id))
 
-        auction.currency = 'EUR' # TODO this could be configured (only this needs changing)
+        auction.currency = self.currency
 
-        fill_in_field(auction, 'title', data, ('lotTitle',))
-        fill_in_field(auction, 'subtitle', data, ('lotSubtitle',))
-        fill_in_field(auction, 'description', data, ('description',), self._normalise_text)
-        fill_in_field(auction, 'seller_id', data, ('sellerInfo', 'id'), str)
-        fill_in_field(auction, 'lot_details', data, ('specifications',), lambda specs: json.dumps(dict((spec['name'], spec['value']) for spec in specs)))
-        fill_in_field(auction, 'image_urls', data, ('images',), lambda imgs: ' '.join((img['large'] for img in imgs)))
-        fill_in_field(auction, 'expert_estimate_max', data, ('expertsEstimate', 'max'), json.dumps)
-        fill_in_field(auction, 'expert_estimate_min', data, ('expertsEstimate', 'min'), json.dumps)
+        def extract_lot_details(specs):
+            details = dict((spec['name'], spec['value']) for spec in specs)
+            return json.dumps(details)
 
-        bidding_req = requests.get(f'https://www.catawiki.com/buyer/api/v2/lots/{auction_id}/bidding?currency_code={auction.currency}')
-        bidding = json.loads(bidding_req.text)
+        def combine_image_urls(imgs):
+            return ' '.join((img['large'] for img in imgs))
 
-        fill_in_field(auction, 'starting_price', bidding, ('bidding', 'start_bid_amount'))
-        fill_in_field(auction, 'latest_price', bidding, ('bidding', 'current_bid_amount'))
-        fill_in_field(auction, 'reserve_price_met', bidding, ('bidding', 'reserve_price_met'))
-        fill_in_field(auction, 'closed', bidding, ('bidding', 'closed'))
-        fill_in_field(auction, 'start_time', bidding, ('bidding', 'bidding_start_time'), lambda t: datetime.fromisoformat(t.rstrip('Z')))
-        fill_in_field(auction, 'end_time', bidding, ('bidding', 'bidding_start_time'), lambda t: datetime.fromisoformat(t.rstrip('Z')))
-        fill_in_field(auction, 'sold', bidding, ('bidding', 'sold'))
+        fill_in_field(auction, 'title',
+                      data, ('lotTitle',),
+                      default="")
+        fill_in_field(auction, 'subtitle',
+                      data, ('lotSubtitle',),
+                      default="")
+        fill_in_field(auction, 'description',
+                      data, ('description',),
+                      default="",
+                      process=self._normalise_text)
+        fill_in_field(auction, 'seller_id',
+                      data, ('sellerInfo', 'id'),
+                      default="",
+                      process=str)
+        fill_in_field(auction, 'lot_details',
+                      data, ('specifications',),
+                      default="{}",
+                      process=extract_lot_details)
+        fill_in_field(auction, 'image_urls',
+                      data, ('images',),
+                      default="",
+                      process=combine_image_urls)
+        fill_in_field(auction, 'expert_estimate_max',
+                      data, ('expertsEstimate', 'max', self.currency),
+                      default=-1)
+        fill_in_field(auction, 'expert_estimate_min',
+                      data, ('expertsEstimate', 'min', self.currency),
+                      default=-1)
 
-        bids_req = requests.get(f'https://www.catawiki.com/buyer/api/v1/lots/{auction_id}/bids?currency={auction.currency}')
-        bids = json.loads(bids_req.text)
+        bidding = self._get_json(self.base_bidding_api_uri.format(auction_id))
 
-        fill_in_field(auction, 'n_bids', bids, ('meta', 'total'))
+        fill_in_field(auction, 'starting_price',
+                      bidding, ('bidding', 'start_bid_amount'),
+                      default=-1)
+        fill_in_field(auction, 'latest_price',
+                      bidding, ('bidding', 'current_bid_amount'),
+                      default=-1)
+        fill_in_field(auction, 'reserve_price_met',
+                      bidding, ('bidding', 'reserve_price_met'),
+                      default=False)
+        fill_in_field(auction, 'closed',
+                      bidding, ('bidding', 'closed'),
+                      default=False)
+        fill_in_field(auction, 'start_time',
+                      bidding, ('bidding', 'bidding_start_time'),
+                      default=None,
+                      process=lambda t: datetime.fromisoformat(t.rstrip('Z')))
+        fill_in_field(auction, 'end_time',
+                      bidding, ('bidding', 'bidding_start_time'),
+                      default=None,
+                      process=lambda t: datetime.fromisoformat(t.rstrip('Z')))
+        fill_in_field(auction, 'sold',
+                      bidding, ('bidding', 'sold'),
+                      default=False)
+
+        bids = self._get_json(self.base_bids_api_uri.format(auction_id))
+
+        fill_in_field(auction, 'n_bids',
+                      bids, ('meta', 'total'),
+                      default=-1)
 
         return auction
 
@@ -125,20 +168,38 @@ class CataWikiAuctionScraper(AbstractAuctionScraper):
 
     def __parse_2020_profile_soup(self, soup):
         # Extract profile attributes
-        data = json.loads(soup.find("div", attrs={"data-react-component": "LotsFromSellerSidebar"})['data-props'])
+        json_div_attrs = {"data-react-component": "LotsFromSellerSidebar"}
+        data_json = soup.find("div", attrs=json_div_attrs)['data-props']
+        data = json.loads(data_json)
 
         profile_id = data['seller']['id']
 
         # Construct the profile object
         profile = CataWikiProfile(id=str(profile_id))
 
-        fill_in_field(profile, 'name', data, ('seller', 'userName'))
-        fill_in_field(profile, 'member_since', data, ('seller', 'createdAt'), lambda t: datetime.fromisoformat(t.rstrip('Z')))
-        fill_in_field(profile, 'feedback_score', data, ('seller', 'score', 'score'))
-        fill_in_field(profile, 'positive_reviews', data, ('seller', 'score', 'positiveCount'))
-        fill_in_field(profile, 'neutral_reviews', data, ('seller', 'score', 'neutralCount'))
-        fill_in_field(profile, 'negative_reviews', data, ('seller', 'score', 'negativeCount'))
-        fill_in_field(profile, 'location', data, ('seller', 'address'), json.dumps)
+        fill_in_field(profile, 'name',
+                      data, ('seller', 'sellerName'),
+                      default="")
+        fill_in_field(profile, 'member_since',
+                      data, ('seller', 'createdAt'),
+                      default=None,
+                      process=lambda t: datetime.fromisoformat(t.rstrip('Z')))
+        fill_in_field(profile, 'feedback_score',
+                      data, ('seller', 'score', 'score'),
+                      default=-1)
+        fill_in_field(profile, 'positive_reviews',
+                      data, ('seller', 'score', 'positiveCount'),
+                      default=-1)
+        fill_in_field(profile, 'neutral_reviews',
+                      data, ('seller', 'score', 'neutralCount'),
+                      default=-1)
+        fill_in_field(profile, 'negative_reviews',
+                      data, ('seller', 'score', 'negativeCount'),
+                      default=-1)
+        fill_in_field(profile, 'location',
+                      data, ('seller', 'address'),
+                      default="{}",
+                      process=json.dumps)
 
         return profile
 
@@ -158,21 +219,14 @@ class CataWikiAuctionScraper(AbstractAuctionScraper):
         return profile, soup.prettify()
 
     def _scrape_search_page(self, uri):
-        soup = self._get_page(uri)
+        data = self._get_json(uri)
 
-        # NOTE Either of these works, I'm currently calling out to the API as it should be more stable
-        # this does mean 2 requests rather than 1 however
+        output = {}
+        for result in data['lots']:
+            output[str(result['id'])] = \
+                    SearchResult(result['title'], result['url'])
 
-        """
-        data = json.loads(soup.find("div", attrs={"data-react-component": "SearchResults"})['data-props'])
-        output = dict((str(result['id']), SearchResult(result['title'], result['url'])) for result in data['results'])
-        """
-
-        search_req = requests.get(uri)
-        search = json.loads(search_req.text)
-        output = dict((str(result['id']), SearchResult(result['title'], result['url'])) for result in search['lots'])
-
-        return output, soup.prettify()
+        return output, json.dumps(data)
 
     def _generate_search_uri(self, query_string, n_page):
         if not isinstance(n_page, int) or n_page < 1:
