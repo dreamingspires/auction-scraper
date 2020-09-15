@@ -14,6 +14,11 @@ You can [install with pip](https://pypi.org/project/auction-scraper/0.2.1/):
 pip install auction-scraper
 ```
 
+## New backend support
+Want to scrape an auction house not listed above?  Fear not - through our partnership with [Dreaming Spires](dreamingspires.dev), you can request that we build additional backend scrapers to extend the functionality.  Email contact@dreamingspires.dev for more info.
+
+We also accept PRs, so feel free to write your own backend and submit it, if you require.  Instructions for this can be found under the _Building new backends_ section.
+
 ## Usage
 
 `auction-scraper` will scrape data from auctions, profiles, and searches on the specified auction site.  Resulting textual data is written to a `sqlite3` database, with images and backup web pages optionally being written to a _data directory_.
