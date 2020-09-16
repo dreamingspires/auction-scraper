@@ -219,3 +219,5 @@ backend_name
 Edd Salkield <edd@salkield.uk>  - Main codebase
 
 Mark Todd                       - Liveauctioneers scraper
+
+Jonathan Tanner                 - Catawiki scraper
