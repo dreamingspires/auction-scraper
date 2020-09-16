@@ -47,6 +47,9 @@ def fill_in_field(table, table_field_name,
              of invalid type {type(process(data_field))}'
              )
 
+def json_dumps_unicode(data):
+    return json.dumps(data, ensure_ascii=False)
+
 class CataWikiAuctionScraper(AbstractAuctionScraper):
     """
     A scraper for catawiki.com
@@ -83,7 +86,7 @@ class CataWikiAuctionScraper(AbstractAuctionScraper):
 
         def extract_lot_details(specs):
             details = dict((spec['name'], spec['value']) for spec in specs)
-            return json.dumps(details)
+            return json_dumps_unicode(details)
 
         def combine_image_urls(imgs):
             return ' '.join((img['large'] for img in imgs))
@@ -199,7 +202,7 @@ class CataWikiAuctionScraper(AbstractAuctionScraper):
         fill_in_field(profile, 'location',
                       data, ('seller', 'address'),
                       default="{}",
-                      process=json.dumps)
+                      process=json_dumps_unicode)
 
         return profile
 
@@ -226,7 +229,7 @@ class CataWikiAuctionScraper(AbstractAuctionScraper):
             output[str(result['id'])] = \
                     SearchResult(result['title'], result['url'])
 
-        return output, json.dumps(data)
+        return output, json_dumps_unicode(data)
 
     def _generate_search_uri(self, query_string, n_page):
         if not isinstance(n_page, int) or n_page < 1:
