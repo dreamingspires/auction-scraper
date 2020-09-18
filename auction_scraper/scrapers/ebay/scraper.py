@@ -190,7 +190,11 @@ class EbayAuctionScraper(AbstractAuctionScraper):
         
         # Extract additional info
         image_urls = get_image_urls(raw_values)
-        iframe = soup.find('div', attrs={'id': 'desc_div'}).find('iframe')
+        desc_div = soup.find('div', attrs={'id': 'desc_div'})
+        if desc_div is not None:
+            iframe = desc_div.find('iframe')
+        else:
+            iframe = soup.find('div', attrs={'class': 'vi_descsnpt_holder'})
         desc = iframe.text
 
         # Construct the auction object

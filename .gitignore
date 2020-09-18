@@ -3,3 +3,4 @@
 */__pycache__
 auction_scraper.egg-info/
 dist/
+data/
