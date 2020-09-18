@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "auction-scraper"
-version = "0.2.2"
-description = "Extensible auction house scraper for ebay, liveauctioneers, and other platforms"
+version = "0.3.0"
+description = "Extensible auction house scraper for ebay, liveauctioneers, catawiki, and other platforms"
 authors = ["Edd Salkield <edd@salkield.uk>"]
 packages = [
     { include = "auction_scraper" },
