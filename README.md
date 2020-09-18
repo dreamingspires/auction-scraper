@@ -2,7 +2,7 @@
 
 >  Scrape auction data auction sites into a sqlite database
 
-> Currently supports: ebay, liveauctioneers
+> Currently supports: catawiki, ebay, liveauctioneers
 
 > Can be used as a CLI tool, or interfaced with directly
 
@@ -270,3 +270,5 @@ backend_name
 Edd Salkield <edd@salkield.uk>  - Main codebase
 
 Mark Todd                       - Liveauctioneers scraper
+
+Jonathan Tanner                 - Catawiki scraper

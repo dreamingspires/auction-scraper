@@ -20,6 +20,7 @@ import unicodedata
 import traceback
 from pathlib import Path
 from termcolor import colored
+import json
 
 from auction_scraper.abstract_models import Base
 
@@ -184,6 +185,16 @@ class AbstractAuctionScraper():
                 iframe_soup = BeautifulSoup(ir.text, 'html.parser')
                 iframe.append(iframe_soup)
         return soup
+
+    def _get_json(self, uri):
+        """
+        Requests the page from uri and returns a json object.
+        If resolve_iframes, resolves all iframes in the page.
+        """
+        r = requests.get(uri)
+        if not r.ok:
+            raise ValueError('The requested page could not be found')
+        return json.loads(r.text)
 
     def scrape_auction(self, auction, save_page=False, save_images=False):
         """

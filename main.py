@@ -17,19 +17,23 @@ import pathlib
 import typing
 from enum import Enum
 
+from auction_scraper.scrapers.catawiki.scraper import \
+    CataWikiAuctionScraper
 from auction_scraper.scrapers.liveauctioneers.scraper import \
     LiveAuctioneersAuctionScraper
 from auction_scraper.scrapers.ebay.scraper import \
     EbayAuctionScraper
 
 class Backend(Enum):
+    catawiki = 'catawiki'
     ebay = 'ebay'
     liveauctioneers = 'liveauctioneers'
 
 # Required because apparently Typer doesn't support Enums that map to classes
 backend_dict = {
+        Backend.catawiki: CataWikiAuctionScraper,
         Backend.ebay : EbayAuctionScraper,
-        Backend.liveauctioneers: LiveAuctioneersAuctionScraper
+        Backend.liveauctioneers: LiveAuctioneersAuctionScraper,
     }
 
 app = typer.Typer()
@@ -38,7 +42,9 @@ init_state = {'db_path': None, 'base_uri': None, 'data_location': None,
 state = {}
 
 def setup():
-    if state['backend'] == Backend.ebay:
+    if state['backend'] == Backend.catawiki:
+        scraper = CataWikiAuctionScraper(**init_state)
+    elif state['backend'] == Backend.ebay:
         scraper = EbayAuctionScraper(**init_state)
     elif state['backend'] == Backend.liveauctioneers:
         scraper = LiveAuctioneersAuctionScraper(**init_state)
@@ -126,3 +132,7 @@ def search(n_results: int = typer.Argument(..., help='The number of results to r
 
 def main():
     app()
+
+if __name__ == '__main__':
+    main()
+
