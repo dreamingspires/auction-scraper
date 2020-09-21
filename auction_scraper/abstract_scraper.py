@@ -21,6 +21,7 @@ import traceback
 from pathlib import Path
 from termcolor import colored
 import json
+import time
 
 from auction_scraper.abstract_models import Base
 
@@ -124,7 +125,7 @@ class AbstractAuctionScraper():
 
         # Define the application base directory
         self.engine = create_engine('sqlite:///' + os.path.abspath(db_path), \
-            echo=verbose)
+            echo=verbose, connect_args={'timeout': 20})
         self.Session = sessionmaker(bind=self.engine)
 
         # Create the database tables
@@ -300,6 +301,8 @@ class AbstractAuctionScraper():
         while n_results is None or len(results) < n_results:
             uri = self._generate_search_uri(query_string, n_page)
             n_res = len(results)
+            if self.verbose:
+                print('Scraping search page with uri {uri}')
             res, html = self._scrape_search_page(uri)
 
             # Save the html page here if required
@@ -327,8 +330,12 @@ class AbstractAuctionScraper():
         """
         auction = self.scrape_auction(auction, save_page, save_images)
         session = self.Session()
-        session.merge(auction)
-        session.commit()
+        try:
+            session.merge(auction)
+            session.commit()
+        except Exception as e:
+            session.close()
+            raise e
         return auction
     
     def scrape_profile_to_db(self, profile, save_page=False):
@@ -338,8 +345,12 @@ class AbstractAuctionScraper():
         """
         profile = self.scrape_profile(profile, save_page)
         session = self.Session()
-        session.merge(profile)
-        session.commit()
+        try:
+            session.merge(profile)
+            session.commit()
+        except Exception as e:
+            session.close()
+            raise e
         return profile
 
     def scrape_search_to_db(self, query_strings, n_results=None, \
@@ -355,9 +366,21 @@ class AbstractAuctionScraper():
         # Get search results, deduplicating across queries through dict merging
         results = {}
         for query_string in query_strings:
-            results = {**results, \
-                    **self.scrape_search(query_string, n_results, save_page,
-                        save_images)}
+            print(f'Scraping query string {query_string}')
+            # Retry the search three times, to deal with transient errors
+            #raise NotImplementedError
+            for i in range(3):
+                try:
+                    results = {**results, \
+                            **self.scrape_search(query_string, n_results, save_page,
+                                save_images)}
+                except Exception as e:
+                    if i == 2:
+                        raise e
+                    else:
+                        time.sleep(1)
+                else:
+                    break
 
         scraped_profile_ids = set()
         exceptions = []

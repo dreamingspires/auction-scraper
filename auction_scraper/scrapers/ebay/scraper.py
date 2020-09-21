@@ -396,7 +396,7 @@ class EbayAuctionScraper(AbstractAuctionScraper):
                     type(location)))
 
         try:
-            profile.percent_positive_feedback = int(percent_positive_feedback)
+            profile.percent_positive_feedback = int(float(percent_positive_feedback))
         except TypeError:
             pass
         except ValueError:
