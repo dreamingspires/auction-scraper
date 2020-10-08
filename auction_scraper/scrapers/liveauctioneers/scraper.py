@@ -188,7 +188,7 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
         auction.location = location
 
         try:
-            auction.lot_number = int(element['lotNumber'])
+            auction.lot_number = int(re.sub('[^0-9]', '', element['lotNumber']))
         except KeyError:
             pass
         except ValueError:
@@ -253,7 +253,8 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
         num2 = []
         for i in numerics:
             rawdata = i.text
-            ratingout = int(rawdata[rawdata.find('(')+1:rawdata.find(')')])
+            raw_number = rawdata[rawdata.find('(')+1:rawdata.find(')')]
+            ratingout = int(re.sub('[^0-9]', '', raw_number))
             num2.append(ratingout)
         sum_rating = 0
         total_ratings = 0
@@ -283,19 +284,19 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
         profile.description = description
 
         try:
-            profile.n_followers = int(n_followers)
+            profile.n_followers = int(re.sub('[^0-9]', '', n_followers))
         except ValueError:
             print('profile {} received n_followers {} of invalid type {}' \
                 .format(profile_id, n_followers, type(n_followers)))
 
         try:
-            profile.n_ratings = int(n_ratings)
+            profile.n_ratings = n_ratings
         except ValueError:
             print('profile {} received n_ratings {} of invalid type {}' \
                 .format(profile_id, n_ratings, type(n_ratings)))
 
         try:
-            profile.rating_out_of_5 = int(rating)
+            profile.rating_out_of_5 = rating
         except ValueError:
             print('profile {} received rating_out_of_5 {} of invalid type {}' \
                 .format(profile_id, rating, type(rating)))
