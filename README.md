@@ -8,7 +8,7 @@
 
 ## Installation
 
-You can [install with pip](https://pypi.org/project/auction-scraper/0.2.1/):
+You can [install with pip](https://pypi.org/project/auction-scraper/):
 
 ``` 
 pip install auction-scraper
