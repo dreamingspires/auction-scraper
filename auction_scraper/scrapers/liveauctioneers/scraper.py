@@ -267,16 +267,25 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
 
     def __parse_2020_profile_soup(self, soup, profile_id):
         # Extract profile attributes
-        description = soup.find('div', attrs= \
-            {'class' : re.compile('seller-about-text')}).text
+        try:
+            description = soup.find('div', attrs= \
+                {'class' : re.compile('seller-about-text')}).text
+        except AttributeError:
+            description = None
         n_followers = soup.find('div', attrs= \
             {'class' : re.compile('followers')}).text.split(' ')[0] \
             .replace(',','')
-        address = soup.find('div', attrs= \
-            {'class' : re.compile('Address__StyledAddress')}).text
+        try:
+            address = soup.find('div', attrs= \
+                {'class' : re.compile('Address__StyledAddress')}).text
+        except AttributeError:
+            address = None
         rating, n_ratings = self.__rating_calc(soup)
-        auctioneer_name = soup.find('span', attrs= \
-            {'class' : re.compile('titleName')}).text
+        try:
+            auctioneer_name = soup.find('span', attrs= \
+                {'class' : re.compile('titleName')}).text
+        except AttributeError:
+            auctioneer_name = None
 
         # Construct the profile object
         profile = LiveAuctioneersProfile(id=str(profile_id))

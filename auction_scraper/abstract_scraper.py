@@ -161,6 +161,7 @@ class AbstractAuctionScraper():
         norm = unicodedata.normalize("NFKD", text)
         norm = '\n'.join(filter(None, filter(lambda e: not e.isspace(), norm.split('\n'))))
         norm = strip_multiple(norm, ' ')
+        norm = norm.encode('ascii', errors='ignore').decode('unicode-escape')
         return norm
 
 
