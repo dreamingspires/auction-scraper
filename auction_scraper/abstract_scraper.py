@@ -379,6 +379,7 @@ class AbstractAuctionScraper():
                     if i == 2:
                         raise e
                     else:
+                        print(e)
                         time.sleep(1)
                 else:
                     break
