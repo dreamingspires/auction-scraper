@@ -79,7 +79,7 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
             # Bodge until we get rid of slimit
             with silence_output():
                 parser = Parser()
-            
+
             tree = parser.parse(jsonsect)
             j=0
             element = {}
@@ -106,7 +106,7 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
                 urls.append('.'.join(urllist))
             return urls
 
-        
+
         element = get_embedded_json()
 
         # Extract additional auctioneer info
@@ -349,5 +349,5 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
     def _generate_search_uri(self, query_string, n_page):
         if not isinstance(n_page, int) or n_page < 1:
             raise ValueError('n_results must be an int, greater than 0')
-    
+
         return self.base_search_uri.format(query_string, n_page)

@@ -244,7 +244,7 @@ class AbstractAuctionScraper():
                 existing_image_paths)))
 
         return auction
-        
+
 
     def scrape_profile(self, profile, save_page=False):
         """
@@ -303,7 +303,7 @@ class AbstractAuctionScraper():
             uri = self._generate_search_uri(query_string, n_page)
             n_res = len(results)
             if self.verbose:
-                print('Scraping search page with uri {uri}')
+                print(f'Scraping search page with uri {uri}')
             res, html = self._scrape_search_page(uri)
 
             # Save the html page here if required
@@ -338,7 +338,7 @@ class AbstractAuctionScraper():
             session.close()
             raise e
         return auction
-    
+
     def scrape_profile_to_db(self, profile, save_page=False):
         """
         Scrape a profile page, writing the resulting profile to the database.
