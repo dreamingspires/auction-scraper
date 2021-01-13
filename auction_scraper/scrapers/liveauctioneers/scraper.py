@@ -20,6 +20,7 @@ from datetime import datetime
 from pathlib import Path
 from sqlalchemy_utils import Currency
 import contextlib
+import json
 
 @contextlib.contextmanager
 def silence_output():
@@ -36,6 +37,14 @@ from auction_scraper.abstract_scraper import AbstractAuctionScraper, \
 from auction_scraper.scrapers.liveauctioneers.models import \
     LiveAuctioneersAuction, LiveAuctioneersProfile
 
+class PageParsingError(Exception):
+    def __init__(self, page):
+        self.message = 'Failed to parse page'
+        self.page = page
+
+    def __str__(self):
+        return f'{self.message}'
+
 class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
     auction_table = LiveAuctioneersAuction
     profile_table = LiveAuctioneersProfile
@@ -44,6 +53,19 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
     profile_suffix = '/auctioneer/{}'
     search_suffix = '/search/?keyword={}&page={}'
     backend_name = 'liveauctioneers'
+
+
+    def __extract_data_json(self, soup):
+        js = soup.body.find('script', attrs={'data-reactroot': True})
+        if js is None:
+            raise PageParsingError(soup)
+
+        js = js.string
+        assert(js[:14]=='window.__data=' and js[-1:]==';')
+        js = js[14:-1]
+        js = js.replace('undefined', 'null')
+        result = json.loads(js)
+        return result
 
     def __quote_cleaner(self, phrase):
         try:
@@ -332,17 +354,14 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
 
     def _scrape_search_page(self, uri):
         soup = self._get_page(uri)
-        results_grid = soup.find_all('div', attrs={'class' : re.compile('item-title-container')})
+        json = self.__extract_data_json(soup)
 
-        output={}
-        for result in results_grid:
-            link = result.find('a')
-            if link is None:
-                continue
-            href = link['href']
-            auction_id = href.split('/')[2].split('_')[0]
+        output = {}
+        for auction_id in (json['search']['itemIds'] or []):
+            item = json['item']['byId'][str(auction_id)]
             output[auction_id] = SearchResult( \
-                name=result.text, uri=self.base_auction_uri.format(auction_id))
+                name=item['title'], uri=self.base_auction_uri.format(auction_id))
+            print(item['title'])
 
         return output, soup.prettify()
 
