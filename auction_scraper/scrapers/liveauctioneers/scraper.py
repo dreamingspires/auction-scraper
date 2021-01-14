@@ -51,9 +51,14 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
     base_uri = 'https://www.liveauctioneers.com'
     auction_suffix = '/item/{}'
     profile_suffix = '/auctioneer/{}'
-    search_suffix = '/search/?keyword={}&page={}'
+    search_suffix_default = '/search/?keyword={}&page={}'
+    search_suffix_archive = '/search/?keyword={}&page={}&status=archive'
+    search_suffix = None
     backend_name = 'liveauctioneers'
 
+    def __init__(self, archive_search, **kwargs):
+        self.search_suffix = self.search_suffix_archive if archive_search else self.search_suffix_default
+        super().__init__(**kwargs)
 
     def __extract_data_json(self, soup):
 
