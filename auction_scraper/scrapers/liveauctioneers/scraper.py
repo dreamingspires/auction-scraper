@@ -70,6 +70,12 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
         result = json.loads(js)
         return result
 
+    def __address_from_seller(self, seller):
+        address_strings = [seller['address'], seller['address2'], seller['city'], seller['country']]
+        return '\n'.join(filter(None, address_strings))
+
+    ### auction scraping
+
     def __parse_2021_auction_soup(self, soup, auction_id):
 
         def get_embedded_image_urls():
@@ -93,8 +99,8 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
         seller_id = item['sellerId']
         seller = json['seller']['byId'][str(seller_id)]
         auctioneer = seller['name']
-        address_strings = [seller['address'], seller['address2'], seller['city'], seller['country']]
-        location = '\n'.join(filter(None, address_strings))
+        location = self.__address_from_seller(seller)
+
         image_urls = ' '.join(get_embedded_image_urls())
 
         # Construct the auction object
@@ -231,43 +237,36 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
         auction.uri = uri
         return auction, soup.prettify()
 
-    def __rating_calc(self, soup):
-        ratings = soup.find('div', attrs={'class' : re.compile('ratingsCounter')})
-        numerics = ratings.find_all('span', attrs={'class' : re.compile('blue')})
-        num2 = []
-        for i in numerics:
-            rawdata = i.text
-            raw_number = rawdata[rawdata.find('(')+1:rawdata.find(')')]
-            ratingout = int(re.sub('[^0-9]', '', raw_number))
-            num2.append(ratingout)
-        sum_rating = 0
-        total_ratings = 0
+    ### profile scraping
 
-        for i in range(1,6):
-            sum_rating += num2[-i]*(i)
-            total_ratings += num2[-i]
-        mean_rating = round(sum_rating/total_ratings,1)
-        return mean_rating, total_ratings
+    def __parse_2021_profile_soup(self, soup, profile_id):
 
-    def __parse_2020_profile_soup(self, soup, profile_id):
+        json = self.__extract_data_json(soup)
+
+        seller = json['seller']['byId'][str(profile_id)]
+        seller_detail = json['sellerDetail']['byId'][str(profile_id)]
+        seller_ratings = json['sellerRatings']['byId'][str(profile_id)]
+        n_followers = json['sellerFollowerCount']['byId'][str(profile_id)]
+
         # Extract profile attributes
         try:
-            description = soup.find('div', attrs= \
-                {'class' : re.compile('seller-about-text')}).text
+            description = seller_detail['description']
         except AttributeError:
             description = None
-        n_followers = soup.find('div', attrs= \
-            {'class' : re.compile('followers')}).text.split(' ')[0] \
-            .replace(',','')
+
         try:
-            address = soup.find('div', attrs= \
-                {'class' : re.compile('Address__StyledAddress')}).text
+            address = self.__address_from_seller(seller)
         except AttributeError:
             address = None
-        rating, n_ratings = self.__rating_calc(soup)
+
         try:
-            auctioneer_name = soup.find('span', attrs= \
-                {'class' : re.compile('titleName')}).text
+            rating = seller_ratings['overall']
+            n_ratings = seller_ratings['totalReviews']
+        except AttributeError:
+            rating, n_ratings = None, None
+
+        try:
+            auctioneer_name = seller['name']
         except AttributeError:
             auctioneer_name = None
 
@@ -275,25 +274,9 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
         profile = LiveAuctioneersProfile(id=str(profile_id))
         profile.name = auctioneer_name
         profile.description = description
-
-        try:
-            profile.n_followers = int(re.sub('[^0-9]', '', n_followers))
-        except ValueError:
-            print('profile {} received n_followers {} of invalid type {}' \
-                .format(profile_id, n_followers, type(n_followers)))
-
-        try:
-            profile.n_ratings = n_ratings
-        except ValueError:
-            print('profile {} received n_ratings {} of invalid type {}' \
-                .format(profile_id, n_ratings, type(n_ratings)))
-
-        try:
-            profile.rating_out_of_5 = rating
-        except ValueError:
-            print('profile {} received rating_out_of_5 {} of invalid type {}' \
-                .format(profile_id, rating, type(rating)))
-
+        profile.n_followers = n_followers
+        profile.n_ratings = n_ratings
+        profile.rating_out_of_5 = rating
         profile.location = address
 
         return profile
@@ -301,7 +284,7 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
     def __parse_profile_page(self, soup, profile_id):
         # Try various parsing methods until one works
         try:
-            return self.__parse_2020_profile_soup(soup, profile_id)
+            return self.__parse_2021_profile_soup(soup, profile_id)
         except Exception:
             raise ValueError('Could not parse web page')
 
@@ -313,6 +296,8 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
         # Add the uri to the profile
         profile.uri = uri
         return profile, soup.prettify()
+
+    ### search scraping
 
     def _scrape_search_page(self, uri):
         soup = self._get_page(uri)
