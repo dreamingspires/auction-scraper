@@ -25,6 +25,8 @@ import time
 
 from auction_scraper.abstract_models import Base
 
+from .browser_headers import get_random_headers
+
 # From https://stackoverflow.com/questions/18092354/python-split-string-without-splitting-escaped-character#21107911
 def _escape_split(s, delim):
     i, res, buf = 0, [], ''
@@ -141,7 +143,7 @@ class AbstractAuctionScraper():
             image_paths.append(path)
 
             if not path.is_file():
-                r = requests.get(url)
+                r = requests.get(url, headers=get_random_headers())
                 if not r.ok:
                     print(colored('Could not find page: {}'.format(url), 'red'))
                 with open(path, 'wb') as f:
@@ -170,7 +172,8 @@ class AbstractAuctionScraper():
         Requests the page from uri and returns a bs4 soup.
         If resolve_iframes, resolves all iframes in the page.
         """
-        r = requests.get(uri)
+        headers=get_random_headers()
+        r = requests.get(uri, headers=headers)
         if not r.ok:
             raise ValueError('The requested page could not be found')
         soup = BeautifulSoup(r.text, 'html.parser')
@@ -181,7 +184,7 @@ class AbstractAuctionScraper():
                 except KeyError:
                     continue
 
-                ir = requests.get(src)
+                ir = requests.get(src, headers=headers)
                 if not ir.ok:
                     continue
                 iframe_soup = BeautifulSoup(ir.text, 'html.parser')
@@ -193,7 +196,8 @@ class AbstractAuctionScraper():
         Requests the page from uri and returns a json object.
         If resolve_iframes, resolves all iframes in the page.
         """
-        r = requests.get(uri)
+        headers=get_random_headers()
+        r = requests.get(uri, headers=headers)
         if not r.ok:
             raise ValueError('The requested page could not be found')
         return json.loads(r.text)
