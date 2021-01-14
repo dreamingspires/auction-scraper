@@ -37,7 +37,7 @@ from auction_scraper.abstract_scraper import AbstractAuctionScraper, \
 from auction_scraper.scrapers.liveauctioneers.models import \
     LiveAuctioneersAuction, LiveAuctioneersProfile
 
-class PageParsingError(Exception):
+class UnexpectedPageError(Exception):
     def __init__(self, page):
         self.message = 'Failed to parse page'
         self.page = page
@@ -56,198 +56,160 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
 
 
     def __extract_data_json(self, soup):
+
         js = soup.body.find('script', attrs={'data-reactroot': True})
         if js is None:
-            raise PageParsingError(soup)
-
+            raise UnexpectedPageError(soup)
         js = js.string
+
+        # bash embedded JavaScript into being valid JSON
         assert(js[:14]=='window.__data=' and js[-1:]==';')
         js = js[14:-1]
         js = js.replace('undefined', 'null')
+
         result = json.loads(js)
         return result
 
-    def __quote_cleaner(self, phrase):
-        try:
-            return int(phrase)
-        except ValueError:
-            if isinstance(phrase, str):
-                if phrase == 'true':
-                    return True
-                elif phrase == 'false':
-                    return False
-                elif phrase == 'null':
-                    return None
-                else:
-                    if phrase[0]=='"' and phrase[-1]=='"':
-                        return phrase[1:-1]
-                    else:
-                        return phrase
-            else:
-                raise ValueError('Unknown type')
-
-    def __searcher(self, soup, phrase, phrase2):
-        soupstr = str(soup)
-        start_index = soupstr.find(phrase)
-        end_index = soupstr.find(phrase2, start_index+len(phrase))
-        output = soupstr[start_index+len(phrase):end_index]
-        return output
-
-    def __parse_2020_auction_soup(self, soup, auction_id):
-        def get_embedded_json():
-            jsonsect = self.__searcher(soup, \
-                '<script data-reactroot="">', '</script>')
-
-            # Bodge until we get rid of slimit
-            with silence_output():
-                parser = Parser()
-
-            tree = parser.parse(jsonsect)
-            j=0
-            element = {}
-            for node in nodevisitor.visit(tree):
-                try:
-                    if isinstance(node, ast.Assign):
-                        if node.left.value=='"'+str(auction_id)+'"':
-                            for i in node.right.children():
-                                leftp = i.left.value[1:-1]
-                                rightp = i.right.value
-                                element[leftp] = self.__quote_cleaner(rightp)
-                except:
-                    pass
-
-            return element
+    def __parse_2021_auction_soup(self, soup, auction_id):
 
         def get_embedded_image_urls():
-            divs = soup.find_all('div', attrs= \
-                {'class' : re.compile('thumbnail-container')})
+            imgs = soup.find_all('img', attrs= \
+                {'class' : re.compile('Thumbnail__StyledThumbnailImage')})
             urls = []
-            for i in divs:
-                urllist = i.find('img')['src'].split('.')
+            for i in imgs:
+                urllist = i['src'].split('.')
                 urllist[-1] = 'jpg'
                 urls.append('.'.join(urllist))
             return urls
 
+        json = self.__extract_data_json(soup)
 
-        element = get_embedded_json()
+        item = json['item']['byId'][str(auction_id)]
+        item_detail = json['itemDetail']['byId'][str(auction_id)]
+        bidding_info = json['biddingInfo']['byId'][str(auction_id)]
+        catalog = json['catalog']['byId'][str(item['catalogId'])]
 
         # Extract additional auctioneer info
-        div = soup.find('div', attrs={'class' : re.compile('auctioneerInfo')})
-        auctioneer = self.__quote_cleaner( \
-            div.find('h3', attrs= {'class' : re.compile('sellerName')}).text)
-        location = self.__quote_cleaner( \
-            div.find('div', attrs={'class' : re.compile('address')}).text)
+        seller_id = item['sellerId']
+        seller = json['seller']['byId'][str(seller_id)]
+        auctioneer = seller['name']
+        address_strings = [seller['address'], seller['address2'], seller['city'], seller['country']]
+        location = '\n'.join(filter(None, address_strings))
         image_urls = ' '.join(get_embedded_image_urls())
 
         # Construct the auction object
         auction = LiveAuctioneersAuction(id=str(auction_id))
         try:
-            auction.title = element['title']
+            auction.title = item['title']
         except KeyError:
             pass
         except ValueError:
             print('auction {} received title {} of invalid type {}' \
-                .format(auction_id, element['title'], \
-                    type(element['title'])))
+                .format(auction_id, item['title'], \
+                    type(item['title'])))
 
         try:
-            auction.description = self._normalise_text(element['description'])
+            auction.description = self._normalise_text(item_detail['description'])
         except KeyError:
             pass
         except ValueError:
             print('auction {} received description {} of invalid type {}' \
-                .format(auction_id, element['description'], \
-                    type(element['description'])))
+                .format(auction_id, item_detail['description'], \
+                    type(item_detail['description'])))
 
         try:
-            auction.start_time = datetime.utcfromtimestamp( \
-                element['availableTs'])
+            isostring = item['publishDate']
+            # datetime's ISO 8601 parser doesn't understand 'Z' at the end for UTC,
+            # so rewrite it into an easier variant
+            if isostring[-1] == 'Z':
+                auction.start_time = datetime.fromisoformat(isostring[:-1] + '+00:00')
+            else:
+                raise KeyError
         except KeyError:
             pass
         except TypeError:
             print('auction {} received start_time {} of invalid type {}' \
-                .format(auction_id, element['availableTs'], \
-                    type(element['availableTs'])))
+                .format(auction_id, isostring, \
+                    type(isostring)))
 
         try:
-            auction.end_time = datetime.utcfromtimestamp( \
-                element['saleStartTs'])
+            auction.end_time = datetime.utcfromtimestamp(catalog['saleStartTs'])
         except KeyError:
             pass
         except TypeError:
             print('auction {} received end_time {} of invalid type {}' \
-                .format(auction_id, element['saleStartTs'], \
-                    type(element['saleStartTs'])))
+                .format(auction_id, catalog['saleStartTs'], \
+                    type(catalog['saleStartTs'])))
 
         try:
-            auction.n_bids = int(element['bidCount'])
+            auction.n_bids = int(bidding_info['bidCount'])
         except KeyError:
             pass
         except ValueError:
             print('auction {} received n_bids {} of invalid type {}' \
-                .format(auction_id, element['bidCount'], \
-                    type(element['bidCount'])))
+                .format(auction_id, bidding_info['bidCount'], \
+                    type(bidding_info['bidCount'])))
 
         auction.currency = Currency('USD')
         try:
-            auction.latest_price = float(element['salePrice'])
+            auction.latest_price = float(bidding_info['salePrice'])
         except KeyError:
             pass
         except ValueError:
             print('auction {} received latest_price {} of invalid type {}' \
-                .format(auction_id, element['salePrice'], \
-                    type(element['salePrice'])))
+                .format(auction_id, bidding_info['salePrice'], \
+                    type(bidding_info['salePrice'])))
 
         try:
-            auction.starting_price = float(element['startPrice'])
+            auction.starting_price = float(item['startPrice'])
         except KeyError:
             pass
         except ValueError:
             print('auction {} received starting_price {} of invalid type {}' \
-                .format(auction_id, element['startPrice'], \
-                    type(element['startPrice'])))
+                .format(auction_id, item['startPrice'], \
+                    type(item['startPrice'])))
 
         auction.location = location
 
         try:
-            auction.lot_number = int(re.sub('[^0-9]', '', element['lotNumber']))
+            auction.lot_number = int(re.sub('[^0-9]', '', item['lotNumber']))
         except KeyError:
             pass
         except ValueError:
             print('auction {} received lotNumber {} of invalid type {}' \
-                .format(auction_id, element['lotNumber'], \
-                    type(element['lotNumber'])))
+                .format(auction_id, item['lotNumber'], \
+                    type(item['lotNumber'])))
 
         auction.image_urls = image_urls
         try:
-            auction.condition = str(element['conditionReport'])
+            auction.condition = item_detail['conditionReport']
         except KeyError:
             pass
         except ValueError:
             print('auction {} received condition {} of invalid type {}' \
-                .format(auction_id, element['conditionReport'], \
-                    type(element['conditionReport'])))
+                .format(auction_id, item_detail['conditionReport'], \
+                    type(item_detail['conditionReport'])))
 
         try:
-            auction.high_bid_estimate = float(element['highBidEstimate'])
+            auction.high_bid_estimate = float(item['highBidEstimate'])
         except KeyError:
             pass
         except ValueError:
             print('auction {} received high_bid_estimate {} of invalid type {}' \
-                .format(auction_id, element['highBidEstimate'], \
-                    type(element['highBidEstimate'])))
+                .format(auction_id, item['highBidEstimate'], \
+                    type(item['highBidEstimate'])))
 
         try:
-            auction.low_bid_estimate = float(element['lowBidEstimate'])
+            auction.low_bid_estimate = float(item['lowBidEstimate'])
         except KeyError:
             pass
         except ValueError:
             print('auction {} received low_bid_estimate {} of invalid type {}' \
-                .format(auction_id, element['lowBidEstimate'], \
-                    type(element['lowBidEstimate'])))
+                .format(auction_id, item['lowBidEstimate'], \
+                    type(item['lowBidEstimate'])))
 
         try:
-            auction.seller_id = str(element['sellerId'])
+            auction.seller_id = str(seller_id)
         except KeyError:
             pass
 
@@ -256,7 +218,7 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
     def __parse_auction_page(self, soup, auction_id):
         # Try various parsing methods until one works
         try:
-            return self.__parse_2020_auction_soup(soup, auction_id)
+            return self.__parse_2021_auction_soup(soup, auction_id)
         except Exception:
             raise ValueError('Could not parse web page')
 
