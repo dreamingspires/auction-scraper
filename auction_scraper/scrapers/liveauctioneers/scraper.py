@@ -39,7 +39,7 @@ from auction_scraper.scrapers.liveauctioneers.models import \
 
 class UnexpectedPageError(Exception):
     def __init__(self, page):
-        self.message = 'Failed to parse page'
+        self.message = 'Failed to parse page due to unexpected contents'
         self.page = page
 
     def __str__(self):
@@ -76,7 +76,7 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
         return result
 
     def __address_from_seller(self, seller):
-        address_strings = [seller['address'], seller['address2'], seller['city'], seller['country']]
+        address_strings = [seller.get('address'), seller.get('address2'), seller.get('city'), seller.get('country')]
         return '\n'.join(filter(None, address_strings))
 
     ### auction scraping
@@ -253,36 +253,14 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
         seller_ratings = json['sellerRatings']['byId'][str(profile_id)]
         n_followers = json['sellerFollowerCount']['byId'][str(profile_id)]
 
-        # Extract profile attributes
-        try:
-            description = seller_detail['description']
-        except AttributeError:
-            description = None
-
-        try:
-            address = self.__address_from_seller(seller)
-        except AttributeError:
-            address = None
-
-        try:
-            rating = seller_ratings['overall']
-            n_ratings = seller_ratings['totalReviews']
-        except AttributeError:
-            rating, n_ratings = None, None
-
-        try:
-            auctioneer_name = seller['name']
-        except AttributeError:
-            auctioneer_name = None
-
         # Construct the profile object
         profile = LiveAuctioneersProfile(id=str(profile_id))
-        profile.name = auctioneer_name
-        profile.description = description
+        profile.name = seller.get('name')
+        profile.description = seller_detail.get('description')
         profile.n_followers = n_followers
-        profile.n_ratings = n_ratings
-        profile.rating_out_of_5 = rating
-        profile.location = address
+        profile.n_ratings = seller_ratings.get('totalReviews')
+        profile.rating_out_of_5 = seller_ratings.get('overall')
+        profile.location = self.__address_from_seller(seller)
 
         return profile
 
@@ -313,7 +291,7 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
             item = json['item']['byId'][str(auction_id)]
             output[auction_id] = SearchResult( \
                 name=item['title'], uri=self.base_auction_uri.format(auction_id))
-            print(item['title'])
+            print(f'Found auction page "{item["title"]}"')
 
         return output, soup.prettify()
 

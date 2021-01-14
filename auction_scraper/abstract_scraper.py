@@ -237,7 +237,7 @@ class AbstractAuctionScraper():
 
         # Save images if required, updating image_paths
         if save_images:
-            new_image_paths = list(map(str, self._download_images(auction.image_urls.split(' '), auction.id)))
+            new_image_paths = list(map(str, self._download_images(filter(None, auction.image_urls.split(' ')), auction.id)))
             if auction.image_paths is not None:
                 existing_image_paths = _escape_split( \
                     auction.image_paths, ':')
