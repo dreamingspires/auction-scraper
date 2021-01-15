@@ -33,17 +33,9 @@ def silence_output():
     sys.stderr = save_stderr
 
 from auction_scraper.abstract_scraper import AbstractAuctionScraper, \
-    SearchResult
+    SearchResult, UnexpectedPageError
 from auction_scraper.scrapers.liveauctioneers.models import \
     LiveAuctioneersAuction, LiveAuctioneersProfile
-
-class UnexpectedPageError(Exception):
-    def __init__(self, page):
-        self.message = 'Failed to parse page due to unexpected contents'
-        self.page = page
-
-    def __str__(self):
-        return f'{self.message}'
 
 class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
     auction_table = LiveAuctioneersAuction
@@ -291,7 +283,7 @@ class LiveAuctioneersAuctionScraper(AbstractAuctionScraper):
             item = json['item']['byId'][str(auction_id)]
             output[auction_id] = SearchResult( \
                 name=item['title'], uri=self.base_auction_uri.format(auction_id))
-            print(f'Found auction page "{item["title"]}"')
+            # print(f'Found auction page "{item["title"]}"')
 
         return output, soup.prettify()
 

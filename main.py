@@ -113,7 +113,7 @@ def profile(profile: typing.List[str] = typer.Argument(..., help= \
 def search(n_results: int = typer.Argument(..., help='The number of results to return'),
         query_string: typing.List[str] = typer.Argument(..., help='A list of query strings to search for'),
       archive_search: bool = typer.Option(False, help= \
-        'Switch to searching through archived auctions on Liveauctioneer')):
+        'Search archived auctions instead of live auctions. Only available for the liveauctioneers backend.')):
     """
     Performs a search, returning the top n_results results for each query_string.
     Scrapes the auction and seller profile for each result.

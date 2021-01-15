@@ -44,6 +44,13 @@ def _escape_split(s, delim):
         res.append(buf + s[i:j - d])
         i, buf = j + len(delim), ''  # start after delim
 
+class UnexpectedPageError(Exception):
+    def __init__(self, page):
+        self.message = 'Failed to parse page due to unexpected contents. This could be due to the scraper being blocked by anti-scraper measures.'
+        self.page = page
+
+    def __str__(self):
+        return f'{self.message}'
 
 class SearchResult():
     def __init__(self, name, uri):
