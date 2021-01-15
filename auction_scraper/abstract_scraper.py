@@ -69,7 +69,7 @@ class AbstractAuctionScraper():
             auction_suffix=None, profile_suffix=None, \
             search_suffix = None, auction_save_path=None, \
             profile_save_path=None, search_save_path=None, \
-            image_save_path=None, verbose=False):
+            image_save_path=None, verbose=False, **_):
         self.verbose = verbose
 
         if auction_suffix is not None:
