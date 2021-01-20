@@ -42,6 +42,13 @@ def _escape_split(s, delim):
         res.append(buf + s[i:j - d])
         i, buf = j + len(delim), ''  # start after delim
 
+class UnexpectedPageError(Exception):
+    def __init__(self, page):
+        self.message = 'Failed to parse page due to unexpected contents. This could be due to the scraper being blocked by anti-scraper measures.'
+        self.page = page
+
+    def __str__(self):
+        return f'{self.message}'
 
 class SearchResult():
     def __init__(self, name, uri):
@@ -62,7 +69,7 @@ class AbstractAuctionScraper():
             auction_suffix=None, profile_suffix=None, \
             search_suffix = None, auction_save_path=None, \
             profile_save_path=None, search_save_path=None, \
-            image_save_path=None, verbose=False):
+            image_save_path=None, verbose=False, **_):
         self.verbose = verbose
 
         if auction_suffix is not None:
@@ -233,7 +240,7 @@ class AbstractAuctionScraper():
 
         # Save images if required, updating image_paths
         if save_images:
-            new_image_paths = list(map(str, self._download_images(auction.image_urls.split(' '), auction.id)))
+            new_image_paths = list(map(str, self._download_images(filter(None, auction.image_urls.split(' ')), auction.id)))
             if auction.image_paths is not None:
                 existing_image_paths = _escape_split( \
                     auction.image_paths, ':')
@@ -244,7 +251,7 @@ class AbstractAuctionScraper():
                 existing_image_paths)))
 
         return auction
-        
+
 
     def scrape_profile(self, profile, save_page=False):
         """
@@ -303,7 +310,7 @@ class AbstractAuctionScraper():
             uri = self._generate_search_uri(query_string, n_page)
             n_res = len(results)
             if self.verbose:
-                print('Scraping search page with uri {uri}')
+                print(f'Scraping search page with uri {uri}')
             res, html = self._scrape_search_page(uri)
 
             # Save the html page here if required
@@ -338,7 +345,7 @@ class AbstractAuctionScraper():
             session.close()
             raise e
         return auction
-    
+
     def scrape_profile_to_db(self, profile, save_page=False):
         """
         Scrape a profile page, writing the resulting profile to the database.
@@ -379,6 +386,7 @@ class AbstractAuctionScraper():
                     if i == 2:
                         raise e
                     else:
+                        print(e)
                         time.sleep(1)
                 else:
                     break

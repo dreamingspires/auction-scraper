@@ -32,9 +32,9 @@ class TimestampBase(Base):
 class BaseAuctionRelationshipMeta(DeclarativeMeta):
     def __new__(cls, clsname, bases, namespace, profile_table=None,
             profile_table_name=None):
-        namespace['seller_id'] = Column(Text(), 
+        namespace['seller_id'] = Column(Text(),
             ForeignKey(profile_table_name + '.id'))
-        namespace['winner_id'] = Column(Text(), 
+        namespace['winner_id'] = Column(Text(),
             ForeignKey(profile_table_name + '.id'))
         namespace['seller'] = relationship(profile_table, \
             backref='auctions_sold', foreign_keys=clsname + '.seller_id')
@@ -42,11 +42,11 @@ class BaseAuctionRelationshipMeta(DeclarativeMeta):
             backref='auctions_won', foreign_keys=clsname + '.winner_id')
         return super(BaseAuctionRelationshipMeta, cls). \
             __new__( cls, clsname, bases, namespace)
-    
+
     # Must be defined since DeclarativeBase apparently (unlike type)
     # can't "handle extra keyword arguments gracefully"
     # https://stackoverflow.com/questions/13762231/how-to-pass-arguments-to-the-metaclass-from-the-class-definition
-    def __init__(cls, clsname, bases, namespace, profile_table=None, 
+    def __init__(cls, clsname, bases, namespace, profile_table=None,
             profile_table_name=None, **kwargs):
         super(BaseAuctionRelationshipMeta, cls). \
             __init__(clsname, bases, namespace, **kwargs)
