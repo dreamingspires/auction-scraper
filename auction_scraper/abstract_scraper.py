@@ -64,12 +64,14 @@ class AbstractAuctionScraper():
     profile_suffix = None
     search_suffix = None
     backend_name = None
+    cooldown = None
+    cooldown_timestamp = None
 
     def __init__(self, db_path, data_location=None, base_uri=None, \
             auction_suffix=None, profile_suffix=None, \
             search_suffix = None, auction_save_path=None, \
             profile_save_path=None, search_save_path=None, \
-            image_save_path=None, verbose=False, **_):
+            image_save_path=None, verbose=False, cooldown=0, **_):
         self.verbose = verbose
 
         if auction_suffix is not None:
@@ -84,6 +86,8 @@ class AbstractAuctionScraper():
         self.base_auction_uri = urljoin(self.base_uri, self.auction_suffix)
         self.base_profile_uri = urljoin(self.base_uri, self.profile_suffix)
         self.base_search_uri = urljoin(self.base_uri, self.search_suffix)
+
+        self.cooldown = cooldown
 
         # Configure default data locations
         if data_location is not None:
@@ -177,6 +181,16 @@ class AbstractAuctionScraper():
         Requests the page from uri and returns a bs4 soup.
         If resolve_iframes, resolves all iframes in the page.
         """
+        now = time.time()
+        if self.cooldown_timestamp is not None and \
+                self.cooldown_timestamp + self.cooldown > now:
+            sleep_time = self.cooldown - (now - self.cooldown_timestamp)
+            if self.verbose:
+                print('Awaiting cooldown expiry in {}s'.format( \
+                    int(sleep_time)))
+            time.sleep(sleep_time)
+        self.cooldown_timestamp = time.time()
+
         r = requests.get(uri)
         if not r.ok:
             raise ValueError('The requested page could not be found')
@@ -362,7 +376,7 @@ class AbstractAuctionScraper():
         return profile
 
     def scrape_search_to_db(self, query_strings, n_results=None, \
-            save_page=False, save_images=False):
+            save_page=False, save_images=False, cooldown=0):
         """
         Scrape a set of query_strings, writing the resulting auctions and profiles
         to the database.
