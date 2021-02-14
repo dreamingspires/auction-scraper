@@ -1,0 +1,45 @@
+Metadata-Version: 2.1
+Name: cachy
+Version: 0.3.0
+Summary: Cachy provides a simple yet effective caching library.
+Home-page: https://github.com/sdispater/cachy
+License: MIT
+Keywords: cache
+Author: Sébastien Eustace
+Author-email: sebastien@eustace.io
+Requires-Python: >=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.4
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Provides-Extra: memcached
+Provides-Extra: msgpack
+Provides-Extra: redis
+Requires-Dist: msgpack-python (>=0.5,<0.6); extra == "msgpack"
+Requires-Dist: python-memcached (>=1.59,<2.0); extra == "memcached"
+Requires-Dist: redis (>=3.3.6,<4.0.0); extra == "redis"
+Project-URL: Repository, https://github.com/sdispater/cachy
+Description-Content-Type: text/x-rst
+
+Cachy
+#####
+
+.. image:: https://travis-ci.org/sdispater/cachy.png
+   :alt: Cachy Build status
+   :target: https://travis-ci.org/sdispater/cachy
+
+Cachy provides a simple yet effective caching library.
+
+The full documentation is available here: http://cachy.readthedocs.org
+
+
+Resources
+=========
+
+* `Documentation <http://cachy.readthedocs.org>`_
+* `Issue Tracker <https://github.com/sdispater/cachy/issues>`_
+

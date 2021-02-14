@@ -1,0 +1,5 @@
+#!/home/guus/GIT/HOB/auction-scraper/venv/bin/python
+from main import main
+
+if __name__ == '__main__':
+    main()

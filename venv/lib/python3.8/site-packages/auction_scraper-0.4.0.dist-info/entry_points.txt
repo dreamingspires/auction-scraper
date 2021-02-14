@@ -1,0 +1,3 @@
+[console_scripts]
+auction-scraper=main:main
+
