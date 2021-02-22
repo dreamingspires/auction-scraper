@@ -21,6 +21,7 @@ from auction_scraper.abstract_scraper import AbstractAuctionScraper, \
 from auction_scraper.scrapers.catawiki.models import \
     CataWikiAuction, CataWikiProfile
 
+
 def fill_in_field(table, table_field_name,
                   data, data_field_names,
                   default,
@@ -44,11 +45,12 @@ def fill_in_field(table, table_field_name,
         print(f'DEBUG: website data missing field {data_field_names}')
     except ValueError:
         print(f'received {table_field_name} {data_field} \
-             of invalid type {type(process(data_field))}'
-             )
+             of invalid type {type(process(data_field))}')
+
 
 def json_dumps_unicode(data):
     return json.dumps(data, ensure_ascii=False)
+
 
 class CataWikiAuctionScraper(AbstractAuctionScraper):
     """
@@ -151,6 +153,14 @@ class CataWikiAuctionScraper(AbstractAuctionScraper):
         fill_in_field(auction, 'n_bids',
                       bids, ('meta', 'total'),
                       default=-1)
+
+        json_script_attrs = {"type": "application/ld+json"}
+        breadcrumblist_data_json = soup.find("script", attrs=json_script_attrs).string
+        breadcrumblist = json.loads(breadcrumblist_data_json)
+
+        fill_in_field(auction, 'categories',
+                      breadcrumblist, (''))
+
 
         return auction
 
