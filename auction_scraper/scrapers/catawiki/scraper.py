@@ -77,14 +77,23 @@ class CataWikiAuctionScraper(AbstractAuctionScraper):
     def __parse_2020_auction_soup(self, soup):
         json_div_attrs = {"class": "lot-details-page-wrapper"}
         data_json = soup.find("div", attrs=json_div_attrs)['data-props']
-        data = json.loads(data_json)
-
-        auction_id = data['lotId']
+        meta = json.loads(data_json)
 
         # Construct the auction object
+        auction_id = meta['lotId']
         auction = CataWikiAuction(id=str(auction_id))
-
         auction.currency = self.currency
+
+        # TODO: create bidding class to store bidding info
+
+        auction = self.__parse_auction_meta(auction, meta)
+        auction = self.__parse_auction_category(auction, soup)
+        auction = self.__parse_bidding(auction)
+        auction = self.__parse_bids(auction)
+
+        return auction
+
+    def __parse_auction_meta(self, auction, meta):
 
         def extract_lot_details(specs):
             details = dict((spec['name'], spec['value']) for spec in specs)
@@ -94,35 +103,38 @@ class CataWikiAuctionScraper(AbstractAuctionScraper):
             return ' '.join((img['large'] for img in imgs))
 
         fill_in_field(auction, 'title',
-                      data, ('lotTitle',),
+                      meta, ('lotTitle',),
                       default="")
         fill_in_field(auction, 'subtitle',
-                      data, ('lotSubtitle',),
+                      meta, ('lotSubtitle',),
                       default="")
         fill_in_field(auction, 'description',
-                      data, ('description',),
+                      meta, ('description',),
                       default="",
                       process=self._normalise_text)
         fill_in_field(auction, 'seller_id',
-                      data, ('sellerInfo', 'id'),
+                      meta, ('sellerInfo', 'id'),
                       default="",
                       process=str)
         fill_in_field(auction, 'lot_details',
-                      data, ('specifications',),
+                      meta, ('specifications',),
                       default="{}",
                       process=extract_lot_details)
         fill_in_field(auction, 'image_urls',
-                      data, ('images',),
+                      meta, ('images',),
                       default="",
                       process=combine_image_urls)
         fill_in_field(auction, 'expert_estimate_max',
-                      data, ('expertsEstimate', 'max', self.currency),
+                      meta, ('expertsEstimate', 'max', self.currency),
                       default=-1)
         fill_in_field(auction, 'expert_estimate_min',
-                      data, ('expertsEstimate', 'min', self.currency),
+                      meta, ('expertsEstimate', 'min', self.currency),
                       default=-1)
 
-        bidding = self._get_json(self.base_bidding_api_uri.format(auction_id))
+        return auction
+
+    def __parse_bidding(self, auction):
+        bidding = self._get_json(self.base_bidding_api_uri.format(auction.id))
 
         fill_in_field(auction, 'starting_price',
                       bidding, ('bidding', 'start_bid_amount'),
@@ -148,19 +160,31 @@ class CataWikiAuctionScraper(AbstractAuctionScraper):
                       bidding, ('bidding', 'sold'),
                       default=False)
 
-        bids = self._get_json(self.base_bids_api_uri.format(auction_id))
+        return auction
+
+    def __parse_bids(self, auction):
+        bids = self._get_json(self.base_bids_api_uri.format(auction.id))
 
         fill_in_field(auction, 'n_bids',
                       bids, ('meta', 'total'),
                       default=-1)
 
+        return auction
+
+    def __parse_auction_category(self, auction, soup):
         json_script_attrs = {"type": "application/ld+json"}
-        breadcrumblist_data_json = soup.find("script", attrs=json_script_attrs).string
-        breadcrumblist = json.loads(breadcrumblist_data_json)
+        breadcrumb_list_json = soup.find("script", attrs=json_script_attrs).string
+        breadcrumb_list = json.loads(breadcrumb_list_json)
+
+        def extract_categories(cats):
+            categories = dict((cat['item']['name'], cat['item']['@id']) for cat in cats \
+                        if cat['item']['name'] != 'Catawiki')
+            return json_dumps_unicode(categories)
 
         fill_in_field(auction, 'categories',
-                      breadcrumblist, (''))
-
+                      breadcrumb_list, ('itemListElement', ),
+                      default="{}",
+                      process=extract_categories)
 
         return auction
 

@@ -175,7 +175,6 @@ class AbstractAuctionScraper():
         norm = norm.encode('ascii', errors='ignore').decode('unicode-escape')
         return norm
 
-
     def _get_page(self, uri, resolve_iframes=False):
         """
         Requests the page from uri and returns a bs4 soup.
