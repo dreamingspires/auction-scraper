@@ -137,7 +137,7 @@ class EbayAuctionScraper(AbstractAuctionScraper):
                                     elif v != 'null':
                                         raw_values[k] = v
             return raw_values
-        
+
         def get_image_urls(raw_values):
             # TODO: sometimes only displayImgUrl is given, when the s-l600 image exists
             # Example: https://www.ebay.com/itm/Chubby-Blob-Seal-Plush-Toy-Animal-Cute-Ocean-Pillow-Pet-Stuffed-Doll-Kids-Gift/362995774962
@@ -187,7 +187,7 @@ class EbayAuctionScraper(AbstractAuctionScraper):
                 print(f'notify author: entityid==entityname assumption incorrect for domain {url}')
         except KeyError:
             print('notify author: entityid or entityname does not exist for auction {}, for domain {}.'.format(raw_values['itemId'], url))
-        
+
         # Extract additional info
         image_urls = get_image_urls(raw_values)
         desc_div = soup.find('div', attrs={'id': 'desc_div'})
@@ -444,7 +444,7 @@ class EbayAuctionScraper(AbstractAuctionScraper):
                 print(result.prettify())
                 continue
             except ValueError:
-                print("Could not convert auction ID {auction_id} to int")
+                print(f"Could not convert auction ID {auction_id} to int")
 
             name = ' '.join(result.find('h3').find('a').find( \
                     text=True, recursive=False).split())
@@ -470,5 +470,5 @@ class EbayAuctionScraper(AbstractAuctionScraper):
     def _generate_search_uri(self, query_string, n_page):
         if not isinstance(n_page, int) or n_page < 1:
             raise ValueError('n_results must be an int, greater than 0')
-    
+
         return self.base_search_uri.format(query_string, n_page)

@@ -37,8 +37,8 @@ backend_dict = {
     }
 
 app = typer.Typer()
-init_state = {'db_path': None, 'base_uri': None, 'data_location': None, 
-        'verbose': None}
+init_state = {'db_path': None, 'base_uri': None, 'data_location': None,
+        'verbose': None, 'archive_search': False}
 state = {}
 
 def setup():
@@ -111,15 +111,22 @@ def profile(profile: typing.List[str] = typer.Argument(..., help= \
 
 @app.command()
 def search(n_results: int = typer.Argument(..., help='The number of results to return'),
-        query_string: typing.List[str] = typer.Argument(..., help='A list of query strings to search for')):
+    query_string: typing.List[str] = typer.Argument(..., help='A list of query strings to search for'),
+    archive_search: bool = typer.Option(False, help= \
+        'Search archived auctions instead of live auctions. Only available for the liveauctioneers backend.'),
+    cooldown: int = typer.Option(0, help= \
+        'Time to wait between making requests, in seconds')
+      ):
     """
     Performs a search, returning the top n_results results for each query_string.
     Scrapes the auction and seller profile for each result.
     """
+    init_state['archive_search'] = archive_search
+    init_state['cooldown'] = cooldown
     scraper = setup()
     exception = False
     try:
-        scraper.scrape_search_to_db(query_string, n_results, 
+        scraper.scrape_search_to_db(query_string, n_results,
             state['save_pages'], state['save_images'])
     except Exception as e:
         exception = True
