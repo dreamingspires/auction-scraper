@@ -303,8 +303,9 @@ class AbstractAuctionScraper():
             uri = self._generate_search_uri(query_string, n_page)
             n_res = len(results)
             if self.verbose:
-                print('Scraping search page with uri {uri}')
+                print(f'Scraping search page with uri {uri}')
             res, html = self._scrape_search_page(uri)
+            print(res)
 
             # Save the html page here if required
             if save_page:
@@ -322,6 +323,7 @@ class AbstractAuctionScraper():
             while len(results) > n_results:
                 results.popitem()
 
+        print(f'results: {results}')
         return results
 
     def scrape_auction_to_db(self, auction, save_page=False, save_images=False):
