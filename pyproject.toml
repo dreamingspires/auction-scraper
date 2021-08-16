@@ -25,6 +25,7 @@ typer = "^0.3.2"
 termcolor = "^1.1.0"
 babel = "^2.8.0"
 python-dateutil = "^2.8.1"
+selenium = "^3.141.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
