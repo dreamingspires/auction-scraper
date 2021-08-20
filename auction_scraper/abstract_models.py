@@ -15,7 +15,7 @@ from sqlalchemy.types import Text
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy_utils import CurrencyType
 from sqlalchemy.orm import relationship
-from sqlalchemy.ext.declarative.api import DeclarativeMeta
+from sqlalchemy.orm.decl_api import DeclarativeMeta
 from datetime import datetime
 
 Base = declarative_base()
