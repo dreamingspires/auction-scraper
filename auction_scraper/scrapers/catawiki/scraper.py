@@ -120,37 +120,45 @@ class CataWikiAuctionScraper(AbstractAuctionScraper):
                       data, ('expertsEstimate', 'min', self.currency),
                       default=-1)
 
-        bidding = self._get_json(self.base_bidding_api_uri.format(auction_id))
+        try:
+            bidding = self._get_json(self.base_bidding_api_uri.format(auction_id))
+        except ValueError:
+            # The catawiki API is now shut
+            pass
+        else:
+            fill_in_field(auction, 'starting_price',
+                          bidding, ('bidding', 'start_bid_amount'),
+                          default=-1)
+            fill_in_field(auction, 'latest_price',
+                          bidding, ('bidding', 'current_bid_amount'),
+                          default=-1)
+            fill_in_field(auction, 'reserve_price_met',
+                          bidding, ('bidding', 'reserve_price_met'),
+                          default=False)
+            fill_in_field(auction, 'closed',
+                          bidding, ('bidding', 'closed'),
+                          default=False)
+            fill_in_field(auction, 'start_time',
+                          bidding, ('bidding', 'bidding_start_time'),
+                          default=None,
+                          process=lambda t: datetime.fromisoformat(t.rstrip('Z')))
+            fill_in_field(auction, 'end_time',
+                          bidding, ('bidding', 'bidding_start_time'),
+                          default=None,
+                          process=lambda t: datetime.fromisoformat(t.rstrip('Z')))
+            fill_in_field(auction, 'sold',
+                          bidding, ('bidding', 'sold'),
+                          default=False)
 
-        fill_in_field(auction, 'starting_price',
-                      bidding, ('bidding', 'start_bid_amount'),
-                      default=-1)
-        fill_in_field(auction, 'latest_price',
-                      bidding, ('bidding', 'current_bid_amount'),
-                      default=-1)
-        fill_in_field(auction, 'reserve_price_met',
-                      bidding, ('bidding', 'reserve_price_met'),
-                      default=False)
-        fill_in_field(auction, 'closed',
-                      bidding, ('bidding', 'closed'),
-                      default=False)
-        fill_in_field(auction, 'start_time',
-                      bidding, ('bidding', 'bidding_start_time'),
-                      default=None,
-                      process=lambda t: datetime.fromisoformat(t.rstrip('Z')))
-        fill_in_field(auction, 'end_time',
-                      bidding, ('bidding', 'bidding_start_time'),
-                      default=None,
-                      process=lambda t: datetime.fromisoformat(t.rstrip('Z')))
-        fill_in_field(auction, 'sold',
-                      bidding, ('bidding', 'sold'),
-                      default=False)
-
-        bids = self._get_json(self.base_bids_api_uri.format(auction_id))
-
-        fill_in_field(auction, 'n_bids',
-                      bids, ('meta', 'total'),
-                      default=-1)
+        try:
+            bids = self._get_json(self.base_bids_api_uri.format(auction_id))
+        except ValueError:
+            # The catawiki API is now shut
+            pass
+        else:
+            fill_in_field(auction, 'n_bids',
+                          bids, ('meta', 'total'),
+                          default=-1)
 
         return auction
 
